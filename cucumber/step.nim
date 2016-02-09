@@ -4,44 +4,41 @@ import macros
 import nre
 import options
 import "./parameter"
+import "./types"
 
+export nre.re, nre.match, nre.Regex, nre.RegexMatch
+export options.Option
 
 type
-  StepType* = enum
-    stGiven,
-    stWhen,
-    stThen
 
-  ArgDef = tuple
-    aname: string
-    atype: string
-  #ArgList[N : static[int]] = array[N, ArgDef]
-
-  StepResult* = enum
-    srSuccess
-    srFail
-    srSkip
+  StepArgs* = ref object of RootObj
+    stepText*: string
+    blockParam*: string
 
   StepDefinition* = object
-    re: Regex
-    defn: proc(stepText: string) : StepResult
+    stepType*: StepType
+    stepRE*: Regex
+    defn*: proc(stepArgs: StepArgs) : StepResult
+    expectsBlock*: bool
 
-var stepDefinitionLibrary* : seq[StepDefinition] = @[]
+  StepDefinitions* = array[StepType, seq[StepDefinition]]
 
-proc arg(aname: string, atype: string) : ArgDef =
-  result = (aname: aname, atype: atype)
+var stGiven0 : seq[StepDefinition] = @[]
+var stWhen0 : seq[StepDefinition] = @[]
+var stThen0 : seq[StepDefinition] = @[]
+var stepDefinitions* : StepDefinitions = [stGiven0, stWhen0, stThen0]
 
-macro step(
-    stepType: static[StepType], 
-    pattern: static[string],
-    arglist: static[openArray[ArgDef]],
-    body: untyped) : typed =
+proc step(
+    stepType: StepType, 
+    pattern0: string,
+    arglist: NimNode,
+    body: NimNode) : NimNode =
   ## Creates a step definition.
   ## 
   ## The result will look something like this:
   ## 
-  ##     let stepXXRE = re(stepPattern)
-  ##     proc stepXXDefinition(stepText: string) : StepResult =
+  ##     let stepRE = re(stepPattern)
+  ##     proc stepDefinition(stepText: string) : StepResult =
   ##       let actual = stepText.match(stepRE).get
   ##       block:
   ##         var arg1 : arg1Type = parseArg1(actual[0])
@@ -53,69 +50,130 @@ macro step(
   ##         except:
   ##           result = srFail
   ##     
-  ## stepDefinitionLibrary.add((re: stepRE, defn: stepXXDefinition))
+  ## stepDefinitions.add(StepDefinition(stepRE: stepRE, defn: stepDefinition))
   ## 
+
+  let pattern = pattern0
   let reNode = genSym(nskLet, "stepRE")
-  let procIDNode = genSym(nskProc, "stepDefinition") #newIdentNode(stepName & "RE")
+  let procIDNode = genSym(nskProc, "stepDefinition")
+  let sdefID = genSym(nskLet, "stepDef")
   let bodyNode = newStmtList()
-  for i, argDef in arglist:
+  var blockParam : string = nil
+  for i in 0..<arglist.len:
+    let argDef = arglist[i]
+    let aname = $argDef[0]
+    var atype = $argDef[1]
+    var ainit : NimNode
+    if atype == "blockParam":
+      blockParam = aname
+      atype = "string"
+      ainit = newDotExpr(newIdentNode("stepArgs"), newIdentNode("blockParam"))
+    else:
+      ainit = newCall(
+        ptID(atype, "parseFct"), 
+        newTree(nnkBracketExpr, newIdentNode("actual"), newLit(i)))
     let aimpl = newTree(nnkVarSection, newIdentDefs(
-      newIdentNode(argDef.aname), newIdentNode(argDef.atype), 
-      newCall(
-        ptID(argDef.atype, "parseFct"), 
-        newTree(nnkBracketExpr, newIdentNode("actual"), newLit(i))
-      )))
+      newIdentNode(aname), newIdentNode(atype), ainit))
     bodyNode.add(aimpl)
   bodyNode.add(newAssignment(
-    newIdentNode("result"), newIdentNode("srSuccess")))
+    newIdentNode("result"), newTree(
+      nnkObjConstr,
+      newIdentNode("StepResult"), 
+      newColonExpr(newIdentNode("value"), newIdentNode("srSuccess")),
+      newColonExpr(newIdentNode("exception"), newNilLit()))))
   bodyNode.add(newTree(
     nnkTryStmt, body, newTree(
-      nnkExceptBranch, newAssignment(
-        newIdentNode("result"), newIdentNode("srFail")))))
+      nnkExceptBranch, newStmtList(
+        newAssignment(
+          newDotExpr(newIdentNode("result"), newIdentNode("value")), 
+          newIdentNode("srFail")),
+        newAssignment(
+          newDotExpr(newIdentNode("result"), newIdentNode("exception")), 
+          newCall(newIdentNode("getCurrentException")))
+        ))))
+  var wrapperParams = [
+   newIdentNode("StepResult"),
+   newIdentDefs(newIdentNode("stepArgs"), newIdentNode("StepArgs"))]
+  var procBody : NimNode
+  let nonBlockParams = arglist.len - (if blockParam == nil: 0 else: 1)
+  if nonBlockParams > 0:
+    procBody = newStmtList(
+      newLetStmt(
+        newIdentNode("actual"), 
+        newDotExpr(
+          newDotExpr(
+            newCall(
+              newDotExpr(
+                newDotExpr(
+                  newIdentNode("stepArgs"), newIdentNode("stepText")),
+                newIdentNode("match")), 
+              reNode.copy),
+            newIdentNode("get")),
+          newIdentNode("captures"))),
+      newBlockStmt(bodyNode))
+  else:
+    procBody = bodyNode
   result = newStmtList(
     newLetStmt(
       reNode.copy, 
       newCall(newIdentNode("re"), newLit(pattern))),
     newProc(
       procIDNode.copy,
-      [ newIdentNode("StepResult"),
-        newIdentDefs(newIdentNode("stepText"), newIdentNode("string")) ],
-      newStmtList(
-        newLetStmt(
-          newIdentNode("actual"), 
-          newDotExpr(
-            newDotExpr(
-              newCall(
-                newDotExpr(
-                  newIdentNode("stepText"),
-                  newIdentNode("match")), 
-                reNode.copy),
-              newIdentNode("get")),
-            newIdentNode("captures"))),
-        newBlockStmt(bodyNode)
-      )
-    ),
-    newCall(newDotExpr(
-      newIdentNode("stepDefinitionLibrary"), newIdentNode("add")),
+      wrapperParams,
+      procBody),
+    newLetStmt(
+      sdefID.copy,
       newTree(
         nnkObjConstr,
         newIdentNode("StepDefinition"),
-        newColonExpr(newIdentNode("re"), reNode.copy),
-        newColonExpr(newIdentNode("defn"), procIDNode.copy)))
+        newColonExpr(newIdentNode("stepType"), newIdentNode($stepType)),
+        newColonExpr(newIdentNode("stepRE"), reNode.copy),
+        newColonExpr(newIdentNode("defn"), procIDNode.copy),
+        newColonExpr(newIdentNode("expectsBlock"), newLit(blockParam != nil)))
+    ),
+    newCall(
+      newDotExpr(
+        newTree(
+          nnkBracketExpr, 
+          newIdentNode("stepDefinitions"),
+          newIdentNode($stepType)),
+        newIdentNode("add")),
+      sdefID.copy)
   )
-  #echo result.toStrLit.strVal
+  echo result.toStrLit.strVal
   #echo result.treeRepr
 
+macro Given*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : typed =
+  result = step(stGiven, pattern, arglist, body)
 
-step stGiven, r"(-?\d+)", [arg("foo", "int")]:
-  echo "hello: " & $(foo + 1)
-  raise newException(Exception, "XXX")
+macro When*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : typed =
+  result = step(stWhen, pattern, arglist, body)
+macro Then*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : untyped {.immediate.} =
+  result = step(stThen, pattern, arglist, body)
+  #echo result.toStrLit.strVal
 
-step stGiven, r"(-?\d+) ((?:yes)|(?:no))", [
-    arg("foo", "int"), arg("bar", "bool")]:
-  echo "hello: " & $(foo + 1) & " " & $bar
+when isMainModule:
 
-var r = stepDefinitionLibrary[0].defn("1")
-echo "result " & $r
-r = stepDefinitionLibrary[1].defn("1 yes")
-echo "result " & $r
+  Given r"(-?\d+)", (foo: int):
+    echo "hello: " & $(foo + 1)
+    raise newException(Exception, "XXX")
+
+  When r"(-?\d+) ((?:yes)|(?:no))", (foo: int, bar: bool):
+   echo "hello: " & $(foo + 1) & " " & $bar
+
+  Then r"", (b: blockParam):
+    echo "block: " & b
+
+  var r = stepDefinitions[stGiven][0].defn(StepArgs(stepText: "1"))
+  echo "result " & $r.value
+  var exc = r.exception
+  echo "exc " & $exc.getStackTrace()
+  r = stepDefinitions[stWhen][0].defn(StepArgs(stepText: "1 yes"))
+  echo "result " & $r.value
+

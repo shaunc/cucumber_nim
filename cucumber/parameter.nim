@@ -21,14 +21,12 @@ from strutils import capitalize
 const ptPrefix = "paramType"
 
 # system builtins need wrappers to store as fct pointers
-proc getInt(a : typeinfo.Any) : int =
-  result = typeinfo.getInt(a)
+proc getInt(a : typeinfo.Any) : int = result = typeinfo.getInt(a)
+proc getBool(a : typeinfo.Any) : bool = result = typeinfo.getBool(a)
+proc getString(a: typeinfo.Any) : string = result = typeinfo.getString(a)
 
-proc getBool(a : typeinfo.Any) : bool =
-  result = typeinfo.getBool(a)
-
-proc parseBool(s: string) : bool =
-  result = strutils.parseBool(s)
+proc parseBool(s: string) : bool = result = strutils.parseBool(s)
+proc parseString(s: string) : string = result = s
 
 template ptID*(name: string, suffix: string) : untyped = 
   newIdentNode(ptPrefix & capitalize(name) & capitalize(suffix))
@@ -78,3 +76,7 @@ makeParameterType("int", int, strutils.parseInt, getInt, r"(-?\d+)")
 makeParameterType(
   "bool", bool, parseBool, getBool, 
   r"((?:true)|(?:false)|(:yes)|(:no))")
+makeParameterType("str", string, parseString, getString, r"(.*)")
+
+## `blockParam` type is special: string filled from step block parameter
+makeParameterType("blockParam", string, parseString, getString, nil)

@@ -8,9 +8,10 @@
 from streams import newFileStream, Stream, readLine
 from sequtils import mapIt, apply
 from sets import toSet, contains
-from strutils import split, strip, repeat, `%`, join
-from nre import re, match, captures, `[]`
+from strutils import split, strip, repeat, `%`, join, capitalize
+from nre import re, match, captures, `[]`, replace
 import options
+import "./types"
 
 type
   Node* = ref NodeObj
@@ -39,8 +40,10 @@ type
     examples*: seq[Examples]
 
   StepObj* = object of Node
+    stepType*: StepType
     text*: string
-    blockParameter: string
+    blockParam*: string
+    lineNumber*: int
 
   ExamplesObj* = object of Node
     parameters*: seq[string]
@@ -65,13 +68,23 @@ type
     lineNumber: int
     last: string
 
+const keywords = ["Feature", "Scenario"]
+let headRE = re("($1): " % (keywords.mapIt "(?:$1)" % it).join("|"))
+
 proc newSyntaxError(line : Line, message : string) : ref FeatureSyntaxError = 
-  let fullMessage = "$1: $2\n\n>  $3" % [$line.number, message, line.content]
+  let fullMessage = "Line $1: $2\n\n>  $3" % [$line.number, message, line.content]
   return newException(FeatureSyntaxError, fullMessage)
 
 proc readFeature*(path: string): Feature
 proc readFeature*(fstream: Stream, path: string = "?"): Feature
 proc readFeature*(file: File, path: string = "?") : Feature
+
+proc loadFeature*(features: var seq[Feature], path: string): void = 
+ features.add readFeature(path)
+proc loadFeature*(features: var seq[Feature], fstream: Stream, path: string = "?"): void = 
+ features.add readFeature(fstream, path)
+proc loadFeature*(features: var seq[Feature], file: File, path: string = "?"): void =
+ features.add readFeature(file, path)
 
 proc readFeature(feature: Feature, fstream: Stream): void
 
@@ -83,7 +96,8 @@ proc newFeature(name: string): Feature =
     background: @[],
     scenarios: @[]
   )
-proc newScenario(feature: Feature, description: string) : Scenario =
+proc newScenario(feature: Feature, text: string) : Scenario =
+  let description = text.replace(headRE, "").capitalize
   result = Scenario(
     description: description,
     parent: feature,
@@ -125,16 +139,12 @@ proc readFeature(feature: Feature, fstream: Stream): void =
 
 proc newLine(line: string, ltype: LineType, number: int): Line =
   let sline = line.strip(trailing = false)
-  echo "$1($3): $2" % [$number, sline.strip, $ltype]
+  #echo "$1($3): $2" % [$number, sline.strip, $ltype]
   return Line(
       number: number,
       ltype: ltype,
       indent: line.len - sline.len,
       content: sline.strip)
-
-let keywords = ["Feature", "Scenario"]
-let headRE = re("($1)" % (keywords.mapIt "(?:$1)" % it).join("|"))
-echo $headRE.pattern
 
 proc headKey(line: Line) : string =
   return (line.content.match headRE).get.captures[0]
@@ -238,6 +248,31 @@ proc readBody(feature: Feature, stream: var LineStream): void =
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
   feature.comments.add comments
 
+const stepTypes = ["And", "Given", "When", "Then"]
+let stepTypeRE = re("($1)" % (stepTypes.mapIt ("(?:$1)" % it)).join("|"))
+
+proc addStep(steps: var seq[Step], line: Line) : void =
+  var text = line.content.strip()
+  var stepTypeM = text.match(stepTypeRE)
+  if stepTypeM.isNone:
+    raise newSyntaxError(line, 
+      "Step must start with \"Given\", \"When\", \"Then\", \"And\".")
+  var stepType = stepTypeM.get.captures[0]
+  var step = Step(description: text, lineNumber: line.number)
+  if stepType == "And":
+    if steps.len == 0:
+      raise newSyntaxError(line, "First step cannot be \"And\"")
+    step.stepType = steps[^1].stepType
+  else:
+    case stepType
+    of "Given": step.stepType = stGiven
+    of "When": step.stepType = stWhen
+    of "Then": step.stepType = stThen
+    else:
+      raise newException(Exception, "unrecognized step type?")
+  step.text = text.replace(stepTypeRE, "").strip()
+  steps.add(step)
+
 proc readScenario(
     feature: Feature, stream: var LineStream, head: Line
     ) : Scenario =
@@ -268,8 +303,9 @@ proc readScenario(
       if line.content == "\"\"\"":
         if result.steps.len == 0:
           raise newSyntaxError(line, "multiline block must follow step")
-        result.steps[result.steps.len - 1].readBlock(stream, line.indent)
-      result.steps.add(Step(text: line.content))
+        result.steps[^1].readBlock(stream, line.indent)
+      else:
+        addStep(result.steps, line)
     else:
         raise newSyntaxError(line, "Unexpected " & $line.ltype)
 
@@ -280,7 +316,7 @@ proc readBlock(step: Step, stream: var LineStream, indent: int) : void =
     if line.indent < indent:
       raise newSyntaxError(line, "Unexpected end of multiline block.")
     if line.content == "\"\"\"":
-      step.blockParameter = content
+      step.blockParam = content
       break
     content.add(repeat(" ", line.indent - indent) & line.content & "\n")
 
