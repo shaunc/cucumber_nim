@@ -13,8 +13,8 @@ from nre import re, match, captures, `[]`
 import options
 
 type
-  Node = ref NodeObj
-  NodeObj = object of RootObj
+  Node* = ref NodeObj
+  NodeObj* = object of RootObj
     description*: string
     tags*: seq[string]
     comments*: seq[string]
