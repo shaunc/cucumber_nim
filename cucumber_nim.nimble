@@ -9,4 +9,4 @@ license       = "MIT"
 
 requires "nim >= 0.13.0"
 requires "nre >= 1.0.0"
-
+requires "comandeer >= 0.9.1"

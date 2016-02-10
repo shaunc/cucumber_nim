@@ -26,10 +26,6 @@ type
 
   ScenarioResults* = seq[ScenarioResult]
 
-var library* = Library(
-  stepDefinitions: stepDefinitions, 
-  features: @[])
-
 proc newNoDefinitionForStep(
     step: Step, msg: string, save: bool = true) : ref NoDefinitionForStep =
   let msg = "line: $1: $2" % [$step.lineNumber, msg]
@@ -52,10 +48,10 @@ proc matchStepDefinition(
   raise newNoDefinitionForStep(
     step, "No definition matching \"" & step.text & "\"", save = false)
 
-proc runner*(library: Library) : ScenarioResults =
-  echo "features " & $library.features.len
+proc runner*(features: seq[Feature]) : ScenarioResults =
+  echo "features " & $features.len
   result = @[]
-  for feature in library.features:
+  for feature in features:
     echo "feature scenarios " & $feature.scenarios.len
     for scenario in feature.scenarios:
       echo "scenario steps " & $scenario.steps.len
@@ -87,6 +83,7 @@ when isMainModule:
   Given "a simple feature file:", (data: blockParam):
     echo "file len " & $data.len
 
-  loadFeature(library.features, stdin)
-  var results = runner(library)
+  var features : seq[Feature] = @[]
+  loadFeature(features, stdin)
+  var results = runner(features)
   echo $results.len
