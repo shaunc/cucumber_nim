@@ -1,3 +1,7 @@
 *.sublime*
 cucumber/*
 !cucumber/*.nim
+tests/run
+**/nimcache/
+!tests/features/*.feature
+!tests/*.nim

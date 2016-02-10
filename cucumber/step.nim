@@ -38,8 +38,8 @@ proc step(
   ## The result will look something like this:
   ## 
   ##     let stepRE = re(stepPattern)
-  ##     proc stepDefinition(stepText: string) : StepResult =
-  ##       let actual = stepText.match(stepRE).get
+  ##     proc stepDefinition(stepArgs: StepArgs) : StepResult =
+  ##       let actual = stepArgs.stepText.match(stepRE).get
   ##       block:
   ##         var arg1 : arg1Type = parseArg1(actual[0])
   ##         ...
@@ -54,9 +54,10 @@ proc step(
   ## 
 
   let pattern = pattern0
-  let reNode = genSym(nskLet, "stepRE")
-  let procIDNode = genSym(nskProc, "stepDefinition")
+  let reID = genSym(nskLet, "stepRE")
+  let procID = genSym(nskProc, "stepDefinition")
   let sdefID = genSym(nskLet, "stepDef")
+  let actualID = genSym(nskLet, "actual")
   let bodyNode = newStmtList()
   var blockParam : string = nil
   for i in 0..<arglist.len:
@@ -71,7 +72,7 @@ proc step(
     else:
       ainit = newCall(
         ptID(atype, "parseFct"), 
-        newTree(nnkBracketExpr, newIdentNode("actual"), newLit(i)))
+        newTree(nnkBracketExpr, actualID, newLit(i)))
     let aimpl = newTree(nnkVarSection, newIdentDefs(
       newIdentNode(aname), newIdentNode(atype), ainit))
     bodyNode.add(aimpl)
@@ -99,7 +100,7 @@ proc step(
   if nonBlockParams > 0:
     procBody = newStmtList(
       newLetStmt(
-        newIdentNode("actual"), 
+        actualID, 
         newDotExpr(
           newDotExpr(
             newCall(
@@ -107,7 +108,7 @@ proc step(
                 newDotExpr(
                   newIdentNode("stepArgs"), newIdentNode("stepText")),
                 newIdentNode("match")), 
-              reNode.copy),
+              reID.copy),
             newIdentNode("get")),
           newIdentNode("captures"))),
       newBlockStmt(bodyNode))
@@ -115,10 +116,10 @@ proc step(
     procBody = bodyNode
   result = newStmtList(
     newLetStmt(
-      reNode.copy, 
+      reID.copy, 
       newCall(newIdentNode("re"), newLit(pattern))),
     newProc(
-      procIDNode.copy,
+      procID.copy,
       wrapperParams,
       procBody),
     newLetStmt(
@@ -127,8 +128,8 @@ proc step(
         nnkObjConstr,
         newIdentNode("StepDefinition"),
         newColonExpr(newIdentNode("stepType"), newIdentNode($stepType)),
-        newColonExpr(newIdentNode("stepRE"), reNode.copy),
-        newColonExpr(newIdentNode("defn"), procIDNode.copy),
+        newColonExpr(newIdentNode("stepRE"), reID.copy),
+        newColonExpr(newIdentNode("defn"), procID.copy),
         newColonExpr(newIdentNode("expectsBlock"), newLit(blockParam != nil)))
     ),
     newCall(

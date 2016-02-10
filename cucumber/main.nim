@@ -3,14 +3,23 @@
 
 import os
 import strutils
-import commandeer
+{.hint[XDeclaredButNotUsed]: off.}
+import commandeer 
 import tables
 import "./feature"
 import "./loader"
 import "./runner"
 import "./report"
 
-proc main(options: seq[string] = nil): void =
+template withDir*(newDir: string, body: typed) : typed =
+  var currentDir = os.getCurrentDir()
+  try:
+    os.setCurrentDir(newDir)
+    body
+  finally:
+    os.setCurrentDir(currentDir)
+
+proc main*(options: varargs[string]): void =
   var appName = getAppFilename()
   commandline:
     arguments paths, string, false
@@ -22,6 +31,11 @@ proc main(options: seq[string] = nil): void =
     directory is searched.
       """ % appName
 
+  for opt in options:
+    if opt.startsWith("-"):
+      raise newException(Exception, "unknown option: " & opt)
+    else:
+      paths.add(opt)
   if paths.len == 0:
     paths.add("./features")
   var features : seq[Feature] = @[]

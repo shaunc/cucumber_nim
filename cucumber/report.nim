@@ -36,7 +36,7 @@ let resultColor: Table[StepResultValue, ForegroundColor] = [
   (srSuccess, fgGreen),
   (srFail, fgRed),
   (srSkip, fgBlue),
-  (srNoDefinition, fgCyan)].toTable
+  (srNoDefinition, fgMagenta)].toTable
 
 proc setResultColor(file: File, resultValue: StepResultValue) : void =
   if isatty(file):
