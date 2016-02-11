@@ -3,13 +3,14 @@
 
 import os
 import strutils
-{.hint[XDeclaredButNotUsed]: off.}
 import commandeer 
+
 import tables
 import "./feature"
 import "./loader"
 import "./runner"
 import "./report"
+
 
 template withDir*(newDir: string, body: typed) : typed =
   var currentDir = os.getCurrentDir()
@@ -18,6 +19,8 @@ template withDir*(newDir: string, body: typed) : typed =
     body
   finally:
     os.setCurrentDir(currentDir)
+
+{.push hint[XDeclaredButNotUsed]: off.}
 
 proc main*(options: varargs[string]): void =
   var appName = getAppFilename()
@@ -47,5 +50,8 @@ proc main*(options: varargs[string]): void =
   var results = runner(features)
   basicReporter(results, stdout)
 
+{.pop.}
+
 when isMainModule:
   main()
+
