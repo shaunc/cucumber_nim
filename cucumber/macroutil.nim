@@ -20,6 +20,8 @@ proc newBrkt*(name: string, idx: string) : NimNode {.compiletime.} =
   result = newTree(nnkBracketExpr, newIdentNode(name), newIdentNode(idx))
 proc newBrkt*(name: string, idx: NimNode) : NimNode {.compiletime.} = 
   result = newTree(nnkBracketExpr, newIdentNode(name), idx)
+proc newBrkt*(name: NimNode, idx: string) : NimNode {.compiletime.} = 
+  result = newTree(nnkBracketExpr, name, newIdentNode(idx))
 
 proc newDot*(a, b: string): NimNode {.compiletime.} =
   result = newDotExpr(newIdentNode(a), newIdentNode(b))
@@ -86,3 +88,5 @@ macro mNewTypeExport*(
   newType(name, ttype, true)
 
 macro toCode*(n: NimNode) : untyped = n
+
+

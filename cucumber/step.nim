@@ -19,7 +19,6 @@ type
   StepArgs* = ref object of RootObj
     stepText*: string
     blockParam*: string
-    context*: Context
 
   StepDefinition* = object
     stepType*: StepType
@@ -37,6 +36,7 @@ var stWhen0 : seq[StepDefinition] = @[]
 var stThen0 : seq[StepDefinition] = @[]
 var stepDefinitions* : StepDefinitions = [stGiven0, stWhen0, stThen0]
 
+var ResetContextType
 
 proc ctype(cname: string) : ContextType =
   case cname 
@@ -59,7 +59,8 @@ proc step(
     body: NimNode) : NimNode =
   ## Creates a step definition.
   ## 
-  ## The result will look something like this:
+  ## Suppose the step captures a number of arguments in its pattern, and
+  ## one from global context. The result will look something like this:
   ## 
   ##     let stepRE = re(stepPattern)
   ##     proc stepDefinition(stepArgs: StepArgs) : StepResult =
@@ -68,25 +69,17 @@ proc step(
   ##         let arg1 : arg1Type = parseArg1(actual[0])
   ##         ...
   ##         let argN : argNType = parseArgN(actual[<N+1>])
-  ##         var argC1 : argcC1Type = getC1Type(stepArgs.context, "global.argC1")
+  ##         var argC1 : argcC1Type = getContextC1(ctGlobal, "argC1")
   ##         ...
   ##         try:
   ##           <body>
   ##           result = srSuccess
-  ##           stepArgs.context["location.argC1"] = argC1
+  ##           setContextC1(ctGlobal, "argC1")
   ##           ...
   ##         except:
   ##           result = srFail
   ##     
   ## stepDefinitions.add(StepDefinition(stepRE: stepRE, defn: stepDefinition))
-  ## var ctxArgC1 : ctxArgType = argC1TypeDefault
-  ## proc resetCtxArgC1(): void =
-  ##   resetArgC1Type(globalStepContext, "global.argC1")
-  ## if not context.hasKey("global.argC1"):
-  ##   globalStepContext["global.argC1"] = ctxArgC1
-  ##   resetStepContext["global.argC1"] = resetCtxArgC1
-  ## 
-  ## 
   ## 
   ## Argument list syntax:
   ## 

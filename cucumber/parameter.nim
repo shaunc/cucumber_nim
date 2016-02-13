@@ -31,10 +31,9 @@ import macroutil
 import "./types"
 
 type
-  Context[T] = seq[T]
+  Context[T] = Table[string, T]
   ContextList[T] = array[ContextType, Context[T]]
   ResetContext = proc(ctype: ContextType) : void
-  AllocateContext = proc(ctype: ContextType) : int
 
 const ptPrefix = "paramType"
 var contextResetters : seq[ResetContext] = @[]
@@ -43,25 +42,16 @@ var contextResetters : seq[ResetContext] = @[]
 ## or scenario), there is no need to keep track of which parameter type
 ## corresponds to which resetter.
 ## 
-var contextAllocators: Table[string, AllocateContext] = 
-  initTable[string, AllocateContext]()
-## map parameter type name -> allocator, which allocates an instance
-## for a parameter type, and returns its index.
+
+proc newContext[T]() : Context[T] = initTable[string, T]()
+
+proc resetList[T](contextList: var ContextList[T], clear: ContextType) :void = 
+  contextList[clear] = initTable[string, T]()
 
 proc ptName(name: string, suffix: string) : string {.compiletime.} = 
   ptPrefix & capitalize(name) & capitalize(suffix)
 proc cttName(name: string) : string {.compiletime.} =
   capitalize(name) & "Context"
-
-proc newContext[T]() : Context[T] = @[]
-
-proc newContextElt[T](context: var Context[T], initialValue: T) : int =
-  result = context.len
-  context.add initialValue
-
-proc resetList[T](contextList: var ContextList[T], clear: ContextType) :void = 
-  var context = contextList[clear]
-  context.setLen(0)
 
 macro declareContextList(name : static[string], ptype: untyped) : untyped =
   newType(cttName(name), newBrkt("ContextList", ptype), true)
@@ -82,15 +72,33 @@ macro declareContextReset(name: static[string], ptype: untyped) : untyped =
       `listRName`(`ctxName`, ctype)
     )
 
-macro declareContextAllocate(
+macro declareContextGetter(
     name: static[string], ptype: untyped, newFct: untyped) : untyped =
-  let ctxAlc = newBrkt("contextAllocators", newLit(name))
-  let ctx = newBrkt(ptName(name, "Context"), "ctype")
-  let ncxtElt = newBrkt("newContextElt", ptype)
+  let getterName = pubName(nil, ptName(name, "Getter"))
   let ctype = newIdentNode("ctype")
+  let contextExpr = newBrkt(ptName(name, "Context"), "ctype")
+  let contextAcc = newBrkt("context", "varName")
+  let nnot = newIdentNode("not")
+  let varName = newIdentNode("varName")
+  let context = newIdentNode("context")
   result = quote do:
-    `ctxAlc` = proc(`ctype`: ContextType) : int =
-      `ncxtElt`(`ctx`, `newFct`())
+    proc `getterName`(`ctype`: ContextType, `varName`: string) : `ptype` =
+      var `context` = `contextExpr`
+      if `nnot` (`varName` in `context`):
+        `contextAcc` = `newFct`()
+      return `contextAcc`
+
+macro declareContextSetter(name: static[string], ptype: untyped) : untyped =
+  let setterName = pubName(nil, ptName(name, "Setter"))
+  let ctype = newIdentNode("ctype")
+  let varName = newIdentNode("varName")
+  let val = newIdentNode("val")
+  let contextExpr = newBrkt(
+    newBrkt(ptName(name, "Context"), "ctype"), "varName")
+  result = quote do:
+    proc `setterName`(
+        `ctype`: ContextType, `varName`: string, `val` : `ptype`): void =
+      `contextExpr` = `val`
 
 template declarePT*(
     name: static[string],
@@ -104,19 +112,26 @@ template declarePT*(
   ## ``declarePT("int", int, parseInt, newInt, r"(-?\d+)")`` results in
   ## 
   ## const paramTypeIntName* = "int"
-  ## const paramTypeIntType* = int
+  ## const paramTypeIntTypeName* = "int"
   ## const paramTypeIntParseFct* = parseInt
   ## const paramTypeIntNewFct* = newInt
   ## const paramTypeIntPattern = r"(-?\d+)"
   ## type
   ##   IntContext* = ContextList[int]
-  ## var
-  ##   paramTypeIntContext* : IntContext = [
-  ##     newContext[int](), newContext[int](), newContext[int]()]
+  ## var paramTypeIntContext* : IntContext = [
+  ##   newContext[int](), newContext[int](), newContext[int]()]
+  ## 
   ## contextResetters.add proc(ctype: ContextType) : void = 
   ##   resetList[int](paramTypeIntContext, ctype)
-  ## contextAllocators["int"] = proc(ctype: ContextType) : int =
-  ##   newContextElt[int](paramTypeIntContext[ctype], newInt())
+  ## 
+  ## proc paramTypeIntGetter = proc(ctype: ContextType, varName: string) : int =
+  ##   context = paramTypeIntContext[ctype]
+  ##   if not varName in context:
+  ##     context[varName] = newInt()
+  ##   return context[varName]
+  ## 
+  ## proc paramTypeIntSetter(ctype: ContextType, varName: string, val: int): void =
+  ##   paramTypeIntContext[ctype][varName] = val
   ## 
   mNewVarExport(ptName(name, "name"), string, name)
   #mNewVarExport(ptName(name, "type"), nil, ptype)
@@ -126,7 +141,8 @@ template declarePT*(
   declareContextList(name, ptype)
   declareContextInst(name, ptype)
   declareContextReset(name, ptype)
-  declareContextAllocate(name, ptype, newFct)
+  declareContextGetter(name, ptype, newFct)
+  declareContextSetter(name, ptype)
 
 proc newInt() : int = 0
 declarePT("int", int, strutils.parseInt, newInt, r"(-?\d+)")
