@@ -37,6 +37,7 @@ proc loader*(
     elif path.endsWith( "/" / "**"):
       for dpath in os.walkDirRec(path, recFilter):
           checkLoadFile(features, dpath, errors)
+    result = errors
 
 proc checkLoadFile(
     features: var seq[Feature], spath: string, errors: var LoadingErrors

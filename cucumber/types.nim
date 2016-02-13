@@ -17,3 +17,7 @@ type
     value*: StepResultValue
     exception*: ref Exception
 
+  ContextType* = enum
+    ctGlobal,
+    ctFeature,
+    ctScenario

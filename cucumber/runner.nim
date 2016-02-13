@@ -45,6 +45,7 @@ proc matchStepDefinition(
         raise newNoDefinitionForStep(
           step, "Step definition does not take block parameter.")
       return defn
+
   raise newNoDefinitionForStep(
     step, "No definition matching \"" & step.text & "\"", save = false)
 
@@ -53,15 +54,17 @@ proc runner*(features: seq[Feature]) : ScenarioResults =
   result = @[]
   for feature in features:
     echo "feature scenarios " & $feature.scenarios.len
+    resetContextType(ctFeature)
     for scenario in feature.scenarios:
       echo "scenario steps " & $scenario.steps.len
+      resetContextType(ctScenario)
       var sresult = StepResult(value: srSuccess)
       var badstep : Step
       try:
         for i, step in scenario.steps:
           badstep = step
           let sd = matchStepDefinition(step, stepDefinitions[step.stepType])
-          var args = StepArgs(stepText: step.text)
+          var args = StepArgs(stepText: step.text, context: globalStepContext)
           if sd.expectsBlock:
             args.blockParam = step.blockParam
           sresult = sd.defn(args)

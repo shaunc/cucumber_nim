@@ -22,7 +22,7 @@ var reporters* : Table[string, Reporter] = initTable[string, Reporter]()
 proc registerReporter(name : string, rpt: ReporterProc) : void =
   reporters[name] = Reporter(name: name, rpt: rpt)
 
-{.push hint[ProveInit]: off.}
+{.push warning[ProveInit]: off.}
 let resultChar : Table[StepResultValue, string] = [
   (srSuccess, "✔"),
   (srFail, "✗"),

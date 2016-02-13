@@ -10,8 +10,9 @@ import "./parameter"
 import "./types"
 import "./macroutil"
 
-export nre.re, nre.match, nre.Regex, nre.RegexMatch
-export options.Option
+export nre.re, nre.match, nre.Regex, nre.RegexMatch, nre.captures
+export nre.Captures, nre.`[]`
+export options.Option, options.get
 
 type
 
@@ -28,21 +29,14 @@ type
 
   StepDefinitions* = array[StepType, seq[StepDefinition]]
 
-  ContextType = enum
-    ctGlobal,
-    ctFeature,
-    ctScenario
-  ResetContext = proc(): void
+  StepContext: seq[int]
+  ## keys for each context argument in the param-type-specific collections
 
 var stGiven0 : seq[StepDefinition] = @[]
 var stWhen0 : seq[StepDefinition] = @[]
 var stThen0 : seq[StepDefinition] = @[]
 var stepDefinitions* : StepDefinitions = [stGiven0, stWhen0, stThen0]
-var context*: Context = initTable[string, Any]()
-var resetContext* = initTable[ContextType, seq[ResetContext]]()
-resetContext[ctGlobal] = @[]
-resetContext[ctFeature] = @[]
-resetContext[ctScenario] = @[]
+
 
 proc ctype(cname: string) : ContextType =
   case cname 
@@ -87,10 +81,10 @@ proc step(
   ## stepDefinitions.add(StepDefinition(stepRE: stepRE, defn: stepDefinition))
   ## var ctxArgC1 : ctxArgType = argC1TypeDefault
   ## proc resetCtxArgC1(): void =
-  ##   resetArgC1Type(context, "global.argC1")
+  ##   resetArgC1Type(globalStepContext, "global.argC1")
   ## if not context.hasKey("global.argC1"):
-  ##   context["global.argC1"] = ctxArgC1
-  ##   resetContext["global.argC1"] = resetCtxArgC1
+  ##   globalStepContext["global.argC1"] = ctxArgC1
+  ##   resetStepContext["global.argC1"] = resetCtxArgC1
   ## 
   ## 
   ## 
@@ -130,7 +124,9 @@ proc step(
     let argDef = arglist[i]
     var aname: string;
     var aloc : string = nil;
-    var atype = $argDef[1]
+    var atype: string
+    var isVarType = argDef[1].kind == nnkVarTy
+    atype = if isVarType: $argDef[1][0] else: $argDef[1]
     var ainit : NimNode
     if argDef[0].kind == nnkDotExpr:
       aloc = $argDef[0][0]
@@ -142,11 +138,10 @@ proc step(
       let key = newLit("$1.$2" % [aloc, aname]);
       let ncontext = newDotExpr(
         newIdentNode("stepArgs"), newIdentNode("context"))
-      if aloc.startsWith("var"):
-        aloc = aloc.split(" ")[1]
-        bodyAndFinal.add(newAssignment(
-          newTree(nnkBracketExpr, ncontext, key),
-          newIdentNode(aname)))
+      if isVarType:
+        bodyAndFinal.add(newCall(
+          newIdentNode("set" & capitalize(atype)),
+          ncontext, key, newIdentNode(aname)))
       contextArgs.add((na: aname, lo: aloc, ty: atype))
       let getID = newIdentNode("get" & capitalize(atype))
       ainit = newCall(getID, ncontext.copy, key)  
@@ -229,7 +224,6 @@ proc step(
   for a in contextArgs:
     let asuffix = capitalize(a.na) & capitalize(a.lo)
     let label = newLit("$1.$2" % [a.lo, a.na])
-    echo $a, label.strVal
     let ctxVar = genSym(nskVar, "ctx" & asuffix)
     let atype = newIdentNode(a.ty)
     let adef = ptID(a.ty, "default")
@@ -237,21 +231,21 @@ proc step(
     let areset = newIdentNode("reset" & capitalize(a.ty))
     let nnot = newIdentNode("not")
     let nhasKey = newIdentNode("hasKey")
-    let assignC = newAssignment(newBrkt("context", label), 
-      newCall(newBrkt("toAny", "int"), ctxVar))
+    let assignC = newAssignment(newBrkt("globalStepContext", label), 
+      newCall(newBrkt("toAny", atype), ctxVar))
     let addReset = newCall(newDot(
-      newBrkt("resetContext", $ctype(a.lo)), "add"), ctxReset)
+      newBrkt("resetStepContext", $ctype(a.lo)), "add"), ctxReset)
     var argCoda = quote do:
       var `ctxVar` : `atype` = `adef`
       proc `ctxReset`() : void =
-        `areset`(context, `label`)
-      if `nnot` context.`nhasKey`(`label`):
+        `areset`(globalStepContext, `label`)
+      if `nnot` globalStepContext.`nhasKey`(`label`):
         `assignC`
         `addReset`
     for stm in argCoda:
       result.add(stm)
 
-  #echo result.toStrLit.strVal
+  echo result.toStrLit.strVal
   #echo result.treeRepr
 
 

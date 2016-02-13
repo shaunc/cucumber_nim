@@ -12,6 +12,6 @@ Scenario: simple file with only feature.
   """
   When I read the feature file
   Then the feature description is "parse gherkin"
-  And the feature contains 0 scenarios
-  And the feature contains 0 background
+  #And the feature contains 0 scenarios
+  #And the feature contains 0 background
         

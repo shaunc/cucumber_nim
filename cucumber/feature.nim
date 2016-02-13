@@ -306,6 +306,8 @@ proc readScenario(
         result.steps[^1].readBlock(stream, line.indent)
       else:
         addStep(result.steps, line)
+    of ltComment:
+      result.comments.add(line.content)
     else:
         raise newSyntaxError(line, "Unexpected " & $line.ltype)
 
