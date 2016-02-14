@@ -250,7 +250,7 @@ proc readBody(feature: Feature, stream: var LineStream): void =
   feature.comments.add comments
 
 const stepTypes = ["And", "Given", "When", "Then"]
-let stepTypeRE = re("($1)" % (stepTypes.mapIt ("(?:$1)" % it)).join("|"))
+let stepTypeRE = re("($1)" % (stepTypes.mapIt ("(?:^$1)" % it)).join("|"))
 
 proc addStep(steps: var seq[Step], line: Line) : void =
   var text = line.content.strip()
@@ -259,7 +259,7 @@ proc addStep(steps: var seq[Step], line: Line) : void =
     raise newSyntaxError(line, 
       "Step must start with \"Given\", \"When\", \"Then\", \"And\".")
   var stepType = stepTypeM.get.captures[0]
-  var step = Step(description: text, lineNumber: line.number)
+  var step = Step(description: text.copy, lineNumber: line.number)
   if stepType == "And":
     if steps.len == 0:
       raise newSyntaxError(line, "First step cannot be \"And\"")

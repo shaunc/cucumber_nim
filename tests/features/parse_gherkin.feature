@@ -23,7 +23,48 @@ Scenario: feature with explanation.
     Because I want to
   """
   When I read the feature file
-  Then the feature description is "parse gherkin"
-  And the feature explanation is "Because I want to"
+  Then the feature explanation is "Because I want to"
   And the feature contains 0 scenarios
   And the feature contains 0 background blocks
+
+Scenario: feature with trivial scenario.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: trivial feature
+  """
+  When I read the feature file
+  Then the feature contains 1 scenarios
+  And scenario 0 contains 0 steps
+
+Scenario: feature with two scenarios.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: trivial feature
+
+  Scenario: feature with explanation
+  """
+  When I read the feature file
+  Then the feature contains 2 scenarios
+  And scenario 0 contains 0 steps
+  And scenario 1 contains 0 steps
+
+Scenario: scenario containing a step
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: trivial feature
+    Given nothing
+  """
+  When I read the feature file
+  Then the feature description is "parse gherkin"
+  And the feature contains 1 scenarios
+  And scenario 0 contains 1 steps
+  And step 0 of scenario 0 is of type "Given"
+  And step 0 of scenario 0 has text "nothing"
+  And step 0 of scenario 0 has no block parameter
+
