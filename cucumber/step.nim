@@ -14,6 +14,7 @@ export nre.re, nre.match, nre.Regex, nre.RegexMatch, nre.captures
 export nre.Captures, nre.`[]`
 export options.Option, options.get
 export types.StepArgs
+export parameter.resetContext
 
 type
 
@@ -43,6 +44,7 @@ type
   ArgumentNodes = tuple
     defArgs: NimNode
     setContext: NimNode
+    expectsBlock: NimNode
 
 proc processStepArguments(actual: NimNode, arglist: NimNode) : ArgumentNodes
 
@@ -82,7 +84,8 @@ proc step(
               result.value = srFail
               result.exception = exc
     
-        let stepDef = StepDefinition(stepRE: stepRE, defn: stepDefinition)
+        let stepDef = StepDefinition(
+          stepRE: stepRE, defn: stepDefinition, expectsBlock: false)
         stepDefinitions[stGiven].add(stepDef)
     
     Argument list syntax:
@@ -117,7 +120,7 @@ proc step(
   let stepDef = genSym(nskLet, "stepDef")
   let sresult = newIdentNode "result"
   let exc = newIdentNode "exc"
-  let (defArgs, setContext) = processStepArguments(actual, argList)
+  let (defArgs, setContext, expectsBlock) = processStepArguments(actual, argList)
   let stepDefinitions = newBrkt("stepDefinitions", newIdentNode($stepType))
   let add = newIdentNode("add")
   result = quote do:
@@ -135,8 +138,10 @@ proc step(
           `sresult`.value = srFail
           `sresult`.exception = `exc`
 
-    let `stepDef` = StepDefinition(stepRE: `stepRE`, defn: `stepDefinition`)
+    let `stepDef` = StepDefinition(
+      stepRE: `stepRE`, defn: `stepDefinition`, expectsBlock: `expectsBlock`)
     `stepDefinitions` .`add`(`stepDef`)
+  #mShow(result)
 
 type ArgSpec = tuple
   aname: string
@@ -165,22 +170,28 @@ proc unpackArg(argdef: NimNode) : ArgSpec =
 proc processStepArguments(actual : NimNode, arglist: NimNode) : ArgumentNodes =
   var defArgs = newStmtList()
   var setContext = newStmtList()
-  result = (defArgs, setContext)
+  let expectsBlock = newLit(false)
+  result = (defArgs, setContext, expectsBlock)
   var iactual = -1
   for argdef in arglist:
     let (aname, atype, aloc, avar) = unpackArg(argdef)
     if aloc != ctNotContext:
-      defArgs.add newVar(aname, cast[string](nil), newCall(
-        ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
       if avar:
+        defArgs.add newVar(aname, cast[string](nil), newCall(
+          ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
         setContext.add newCall(
           newIdentNode(ptName(atype, "Setter")), 
-          newLit(aname), newIdentNode(aname))
+          newIdentNode($aloc), newLit(aname), newIdentNode(aname))
+      else:
+        defArgs.add newLet(aname, cast[string](nil), newCall(
+          ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
+
     elif atype == "blockParam":
-      defArgs.add newVar(aname, "string", newDot("stepArgs", "blockParam"))
+      defArgs.add newLet(aname, "string", newDot("stepArgs", "blockParam"))
+      result.expectsBlock = newLit(true)
     else:
       iactual += 1
-      defArgs.add newVar(aname, cast[string](nil), newCall(
+      defArgs.add newLet(aname, cast[string](nil), newCall(
         ptName(atype, "parseFct"), newBrkt(actual, newLit(iactual))))
 
 macro Given*(
@@ -192,7 +203,6 @@ macro When*(
     pattern: static[string], arglist: untyped, body: untyped
     ) : typed =
   result = step(stWhen, pattern, arglist, body)
-  mShow(result)
 
 macro Then*(
     pattern: static[string], arglist: untyped, body: untyped

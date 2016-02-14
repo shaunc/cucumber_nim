@@ -41,10 +41,12 @@ proc main*(options: varargs[string]): void =
       paths.add(opt)
   if paths.len == 0:
     paths.add("./features")
+    paths.add("./tests/features")
   var features : seq[Feature] = @[]
   var errors = loader(features, paths)
   for path, exc in errors.pairs:
     echo "Could not load $1: $2" % [path, exc.msg]
+    echo "Detail: ", exc.msg
     echo exc.getStackTrace()
     echo "\n"
   var results = runner(features)

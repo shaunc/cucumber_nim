@@ -9,52 +9,27 @@ import "../cucumber/parameter"
 import "../cucumber/feature"
 import macros
 
-#[
-proc getFeature(a : Any) : Feature =
-  result = cast[Feature](a.getPointer)
-proc setFeature(a: Any, feature: Feature): void =
-  var b = toAny[Feature](feature)
-  assign(a, b)
-]#
-var streamStack : seq[Stream] = @[]
-var streamIndices: seq[int] = @[]
-var streamSentinel = -1
-proc getStream(a: Any) : Stream =
-  var idx = typeinfo.getInt(a)
-  return if idx >= 0: streamStack[idx] else: nil
-proc setStream(a: Any, s: Stream): void =
-  streamStack.add(s)
-  streamIndices.add(streamIndices.len)
-  var b = toAny[int](streamIndices[^1])
-#[  
-  var b: Any
-  if s == nil:
-    b = toAny[int](streamSentinel)
-  else:
-    streamIndices.add(streamIndices.len)
-    b = toAny[int](streamIndices[^1])
-    streamStack.add(s)
-]#
-  assign(a, b)
 
-dumpTree:
-  proc resetFeature*(context: Context; key: string): void =
-    setFeature(context[key], cast[var Feature](nil))
+declareRefPT(Stream)
+declareRefPT(Feature)
 
-#declarePT(
-#  "Feature", Feature, nil, getFeature, setFeature, "", nil)
-declarePT(
-  "Stream", Stream, nil, getStream, setStream, nil, nil)
-
-Given "a simple feature file", (
+Given "a simple feature file:", (
     data: blockParam, scenario.featureStream: var Stream):
   echo "data", data
   featureStream = newStringStream(data)
 
-When "I read the feature file", (scenario.featureStream: Stream):
-  var content = featureStream.readAll()
-  echo "data", content
+When "I read the feature file", (
+    scenario.featureStream: Stream, scenario.feature: var Feature):
+  feature = readFeature(featureStream)
 
 Then "the feature description is \"(.*)\"", (
-    scenario.featureContent: string, description: string):
-  echo "OK"
+    scenario.feature: Feature, description: string):
+  assert feature.description == description
+
+Then r"the feature contains (\d+) scenarios", (
+    scenario.feature: Feature, nscenarios: int):
+  assert feature.scenarios.len == nscenarios
+
+Then r"the feature contains (\d+) background blocks", (
+    scenario.feature: Feature, nbackground: int):
+  assert feature.background.len == nbackground  

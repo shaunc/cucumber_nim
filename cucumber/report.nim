@@ -19,7 +19,7 @@ type
 #static:
 var reporters* : Table[string, Reporter] = initTable[string, Reporter]()
 
-proc registerReporter(name : string, rpt: ReporterProc) : void =
+proc registerReporter*(name : string, rpt: ReporterProc) : void =
   reporters[name] = Reporter(name: name, rpt: rpt)
 
 {.push warning[ProveInit]: off.}
@@ -79,11 +79,15 @@ proc basicReporter*(results: ScenarioResults, file: File): void =
         "$1: $2" % [sresult.scenario.description, resultDesc[resultValue]])
       file.writeLine("    Step: $1" % sresult.step.description)
       if sresult.stepResult.exception != nil:
+        if isatty(file):
+          setForegroundColor(file, fgRed)
         let exc = sresult.stepResult.exception
         if not (exc of NoDefinitionForStep) or ((ref NoDefinitionForStep)exc).save:
+          file.writeLine("\nDetail: " & sresult.stepResult.exception.msg)
           file.writeLine(sresult.stepResult.exception.getStackTrace())
       file.writeLine("")
 
+registerReporter("basic", basicReporter)
 
 when isMainModule:
 

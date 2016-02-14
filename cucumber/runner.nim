@@ -37,6 +37,7 @@ proc matchStepDefinition(
     step : Step, stepDefinitions : seq[StepDefinition]) : StepDefinition =
   for defn in stepDefinitions:
     var isMatch = step.text.match(defn.stepRE)
+    #echo step.text, defn.stepRE.pattern, isMatch.isSome
     if isMatch.isSome:
       if defn.expectsBlock and step.blockParam == nil:
         raise newNoDefinitionForStep(
@@ -50,21 +51,21 @@ proc matchStepDefinition(
     step, "No definition matching \"" & step.text & "\"", save = false)
 
 proc runner*(features: seq[Feature]) : ScenarioResults =
-  echo "features " & $features.len
+  #echo "features " & $features.len
   result = @[]
   for feature in features:
-    echo "feature scenarios " & $feature.scenarios.len
-    resetContextType(ctFeature)
+    #echo "feature scenarios " & $feature.scenarios.len
+    resetContext(ctFeature)
     for scenario in feature.scenarios:
-      echo "scenario steps " & $scenario.steps.len
-      resetContextType(ctScenario)
+      #echo "scenario steps " & $scenario.steps.len
+      resetContext(ctScenario)
       var sresult = StepResult(value: srSuccess)
       var badstep : Step
       try:
         for i, step in scenario.steps:
           badstep = step
           let sd = matchStepDefinition(step, stepDefinitions[step.stepType])
-          var args = StepArgs(stepText: step.text, context: globalStepContext)
+          var args = StepArgs(stepText: step.text)
           if sd.expectsBlock:
             args.blockParam = step.blockParam
           sresult = sd.defn(args)

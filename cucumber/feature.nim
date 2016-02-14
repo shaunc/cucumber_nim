@@ -203,7 +203,7 @@ proc readHead(feature: Feature, stream: var LineStream): void =
   let key = headKey(hline)
   if key != "Feature":
     raise newSyntaxError(hline, "Feature must start with \"Feature:\".")
-  feature.description = hline.content
+  feature.description = hline.content.replace(headRE, "").strip()
   var explanation = ""
   while true:
     let line = stream.nextLine

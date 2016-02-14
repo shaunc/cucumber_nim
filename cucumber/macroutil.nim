@@ -31,6 +31,9 @@ proc newDot*(a, b: string): NimNode {.compiletime.} =
 proc newDot*(a: NimNode, b: string): NimNode {.compiletime.} =
   result = newDotExpr(a, newIdentNode(b))
 
+proc newColon*(a, b: string): NimNode {.compiletime.} =
+  newColonExpr(newIdentNode(a), newIdentNode(b))
+
 proc newCast*(node: NimNode, toType: string, isVar: bool = false) : NimNode {.compiletime.} =
   var nType = toTypeNode(toType, isVar)
   result = newTree(nnkCast, nType, node)  
@@ -50,27 +53,76 @@ proc maybeExport(name: string, isExport : bool = false) : NimNode {.compiletime.
 proc newVar*[T](name: string, t: T) : NimNode {.compiletime.} =
   result = newVarStmt(newIdentNode(name), newLit(t))
 
+proc newDef(
+    kind: NimNodeKind, name: string, vtype: string, val: NimNode = newEmptyNode(),
+    isExport: bool = false
+    ) : NimNode {.compiletime.} =
+  var nname = maybeExport(name, isExport)
+  var ntype = if vtype == nil: newEmptyNode() else: newIdentNode(vtype)
+  newTree(
+    kind, newIdentDefs(nname, ntype, val))
+
+proc newDef(
+    kind: NimNodeKind, name: string, vtype: NimNode, val: NimNode = newEmptyNode(), 
+    isExport : bool = false 
+    ) : NimNode {.compiletime.} =
+  let vtypeName = if vtype.kind == nnkNilLit: nil else: $vtype
+  result = newDef(kind, name, vtypeName, val, isExport)
+  
+proc newDef(
+    kind: NimNodeKind, name: string, vtype: string, val: string,
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newDef(kind, name, vtype, newIdentNode(val), isExport)
+
 proc newVar*(
     name: string, vtype: string, val: NimNode = newEmptyNode(), 
     isExport : bool = false
     ) : NimNode {.compiletime.} =
-  var nname = maybeExport(name, isExport)
-  var ntype = if vtype == nil: newEmptyNode() else: newIdentNode(vtype)
-  result = newTree(
-    nnkVarSection, newIdentDefs(nname, ntype, val))
-
+  newDef(nnkVarSection, name, vtype, val, isExport)
 proc newVar*(
     name: string, vtype: NimNode, val: NimNode = newEmptyNode(), 
     isExport : bool = false 
     ) : NimNode {.compiletime.} =
-  let vtypeName = if vtype.kind == nnkNilLit: nil else: $vtype
-  result = newVar(name, vtypeName, val, isExport)
-
+  newDef(nnkVarSection, name, vtype, val, isExport)
 proc newVar*(
     name: string, vtype: string, val: string,
     isExport : bool = false
     ) : NimNode {.compiletime.} =
-  newVar(name, vtype, newIdentNode(val), isExport)
+  newDef(nnkVarSection, name, vtype, newIdentNode(val), isExport)
+
+proc newLet*(
+    name: string, vtype: string, val: NimNode = newEmptyNode(), 
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newDef(nnkLetSection, name, vtype, val, isExport)
+proc newLet*(
+    name: string, vtype: NimNode, val: NimNode = newEmptyNode(), 
+    isExport : bool = false 
+    ) : NimNode {.compiletime.} =
+  newDef(nnkLetSection, name, vtype, val, isExport)
+proc newLet*(
+    name: string, vtype: string, val: string,
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newDef(nnkLetSection, name, vtype, newIdentNode(val), isExport)
+
+proc newConst*(
+    name: string, vtype: string, val: NimNode = newEmptyNode(), 
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newDef(nnkConstSection, name, vtype, val, isExport)
+proc newConst*(
+    name: string, vtype: NimNode, val: NimNode = newEmptyNode(), 
+    isExport : bool = false 
+    ) : NimNode {.compiletime.} =
+  newDef(nnkConstSection, name, vtype, val, isExport)
+proc newConst*(
+    name: string, vtype: string, val: string,
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newDef(nnkConstSection, name, vtype, newIdentNode(val), isExport)
+
 
 proc mShow*(n : NimNode) : void =
   echo n.toStrLit.strVal
@@ -79,11 +131,29 @@ macro mNewVar*(
     name: static[string], vtype: untyped, val: untyped
     ) : untyped =
   result = newVar(name, vtype, val, false)
-
 macro mNewVarExport*(
     name: static[string], vtype: untyped, val: untyped
     ) : untyped =
   result = newVar(name, vtype, val, true)
+
+macro mNewLet*(
+    name: static[string], vtype: untyped, val: untyped
+    ) : untyped =
+  result = newLet(name, vtype, val, false)
+macro mNewLetExport*(
+    name: static[string], vtype: untyped, val: untyped
+    ) : untyped =
+  result = newLet(name, vtype, val, true)
+
+macro mNewConst*(
+    name: static[string], vtype: untyped, val: untyped
+    ) : untyped =
+  result = newConst(name, vtype, val, false)
+macro mNewConstExport*(
+    name: static[string], vtype: untyped, val: untyped
+    ) : untyped =
+  result = newConst(name, vtype, val, true)
+
 
 proc newType*(
     name: string, ttype: NimNode, isExport: bool = false
@@ -98,4 +168,6 @@ macro mNewTypeExport*(
 
 macro toCode*(n: NimNode) : untyped = n
 
-macro nameOfNim*(n: untyped) : untyped = newLit($n)
+macro nameOfNim*(n: untyped) : untyped = 
+  newLit($n)
+
