@@ -48,7 +48,7 @@ proc newContext[T]() : Context[T] = initTable[string, T]()
 proc resetList[T](contextList: var ContextList[T], clear: ContextType) :void = 
   contextList[clear] = initTable[string, T]()
 
-proc ptName(name: string, suffix: string) : string {.compiletime.} = 
+proc ptName*(name: string, suffix: string) : string {.compiletime.} = 
   ptPrefix & capitalize(name) & capitalize(suffix)
 proc cttName(name: string) : string {.compiletime.} =
   capitalize(name) & "Context"
@@ -59,7 +59,7 @@ macro declareContextList(name : static[string], ptype: untyped) : untyped =
 macro declareContextInst(name: static[string], ptype: untyped) : untyped =
   let cInit = newBrkt("newContext", ptype)
   let clistInit = quote do:
-    [`cInit`(), `cInit`(), `cInit`()]
+    [`cInit`(), `cInit`(),`cInit`(), `cInit`(),]
   result = newStmtList(newVar(
     ptName(name, "context"), cttName(name), clistInit, isExport = true))
 
@@ -119,7 +119,7 @@ template declarePT*(
   ## type
   ##   IntContext* = ContextList[int]
   ## var paramTypeIntContext* : IntContext = [
-  ##   newContext[int](), newContext[int](), newContext[int]()]
+  ##   newContext[int](), newContext[int](), newContext[int](), nil]
   ## 
   ## contextResetters.add proc(ctype: ContextType) : void = 
   ##   resetList[int](paramTypeIntContext, ctype)
@@ -134,7 +134,7 @@ template declarePT*(
   ##   paramTypeIntContext[ctype][varName] = val
   ## 
   mNewVarExport(ptName(name, "name"), string, name)
-  #mNewVarExport(ptName(name, "type"), nil, ptype)
+  mNewVarExport(ptName(name, "typeName"), string, nameOfNim(ptype))
   mNewVarExport(ptName(name, "parseFct"), nil, parseFct)
   mNewVarExport(ptName(name, "newFct"), nil, newFct)
   mNewVarExport(ptName(name, "pattern"), string, pattern)
@@ -144,18 +144,19 @@ template declarePT*(
   declareContextGetter(name, ptype, newFct)
   declareContextSetter(name, ptype)
 
+export strutils.parseInt
 proc newInt() : int = 0
 declarePT("int", int, strutils.parseInt, newInt, r"(-?\d+)")
 
-proc parseBool(s: string) : bool = strutils.parseBool(s)
+proc parseBool*(s: string) : bool = strutils.parseBool(s)
 proc newBool() : bool = false
 const boolPattern = r"((?:true)|(?:false)|(:yes)|(:no))";
 declarePT("bool", bool, parseBool, newBool, boolPattern)
 
 proc newStringA(): string = ""
-proc parseStringA(s: string) : string = s
-declarePT("string", string, parseStringA, newStringA, r"(.*)")
+proc parseString*(s: string) : string = s
+declarePT("string", string, parseString, newStringA, r"(.*)")
 
 ## `blockParam` type is special: string filled from step block parameter
-declarePT("blockParam", string, parseStringA, newStringA, nil)
+declarePT("blockParam", string, parseString, newStringA, nil)
 

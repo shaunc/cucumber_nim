@@ -13,11 +13,18 @@ type
     srSkip
     srNoDefinition
 
+  StepArgs* = ref object of RootObj
+    stepText*: string
+    blockParam*: string
+
   StepResult* = ref object
+    args*: StepArgs
     value*: StepResultValue
     exception*: ref Exception
 
   ContextType* = enum
     ctGlobal,
     ctFeature,
-    ctScenario
+    ctScenario,
+    ctNotContext
+

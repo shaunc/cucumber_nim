@@ -2,6 +2,7 @@
 
 import macros
 import strutils
+import sequtils
 
 proc pubName*(prefix: string, aname: string) : NimNode {.compiletime.} =
   let name : string = if prefix == nil: aname else: prefix & capitalize(aname)
@@ -22,6 +23,8 @@ proc newBrkt*(name: string, idx: NimNode) : NimNode {.compiletime.} =
   result = newTree(nnkBracketExpr, newIdentNode(name), idx)
 proc newBrkt*(name: NimNode, idx: string) : NimNode {.compiletime.} = 
   result = newTree(nnkBracketExpr, name, newIdentNode(idx))
+proc newBrkt*(name: NimNode, idx: NimNode) : NimNode {.compiletime.} = 
+  result = newTree(nnkBracketExpr, name, idx)
 
 proc newDot*(a, b: string): NimNode {.compiletime.} =
   result = newDotExpr(newIdentNode(a), newIdentNode(b))
@@ -39,13 +42,13 @@ proc newCast*(name: string, toType: string, isVar: bool = false) : NimNode {.com
 proc newCast*(name: string, toType: NimNode, isVar: bool = false) : NimNode {.compiletime.} =
   result = newCast(newIdentNode(name), toType, isVar)
 
-proc newVar*[T](name: string, t: T) : NimNode {.compiletime.} =
-  result = newVarStmt(newIdentNode(name), newLit(t))
-
 proc maybeExport(name: string, isExport : bool = false) : NimNode {.compiletime.}=
   result = newIdentNode(name)
   if isExport:
     result = postfix(result, "*")
+
+proc newVar*[T](name: string, t: T) : NimNode {.compiletime.} =
+  result = newVarStmt(newIdentNode(name), newLit(t))
 
 proc newVar*(
     name: string, vtype: string, val: NimNode = newEmptyNode(), 
@@ -56,12 +59,18 @@ proc newVar*(
   result = newTree(
     nnkVarSection, newIdentDefs(nname, ntype, val))
 
-proc newVar(
+proc newVar*(
     name: string, vtype: NimNode, val: NimNode = newEmptyNode(), 
     isExport : bool = false 
     ) : NimNode {.compiletime.} =
   let vtypeName = if vtype.kind == nnkNilLit: nil else: $vtype
   result = newVar(name, vtypeName, val, isExport)
+
+proc newVar*(
+    name: string, vtype: string, val: string,
+    isExport : bool = false
+    ) : NimNode {.compiletime.} =
+  newVar(name, vtype, newIdentNode(val), isExport)
 
 proc mShow*(n : NimNode) : void =
   echo n.toStrLit.strVal
@@ -89,4 +98,4 @@ macro mNewTypeExport*(
 
 macro toCode*(n: NimNode) : untyped = n
 
-
+macro nameOfNim*(n: untyped) : untyped = newLit($n)

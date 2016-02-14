@@ -13,12 +13,9 @@ import "./macroutil"
 export nre.re, nre.match, nre.Regex, nre.RegexMatch, nre.captures
 export nre.Captures, nre.`[]`
 export options.Option, options.get
+export types.StepArgs
 
 type
-
-  StepArgs* = ref object of RootObj
-    stepText*: string
-    blockParam*: string
 
   StepDefinition* = object
     stepType*: StepType
@@ -28,17 +25,13 @@ type
 
   StepDefinitions* = array[StepType, seq[StepDefinition]]
 
-  StepContext: seq[int]
-  ## keys for each context argument in the param-type-specific collections
-
 var stGiven0 : seq[StepDefinition] = @[]
 var stWhen0 : seq[StepDefinition] = @[]
 var stThen0 : seq[StepDefinition] = @[]
 var stepDefinitions* : StepDefinitions = [stGiven0, stWhen0, stThen0]
 
-var ResetContextType
 
-proc ctype(cname: string) : ContextType =
+proc ctypeFor(cname: string) : ContextType =
   case cname 
   of "global": result = ctGlobal
   of "feature": result = ctFeature
@@ -47,200 +40,148 @@ proc ctype(cname: string) : ContextType =
     raise newException(Exception, "unknown context " & cname)
 
 type
-  ContextArg = tuple
-    na: string
-    lo: string
-    ty: string
+  ArgumentNodes = tuple
+    defArgs: NimNode
+    setContext: NimNode
+
+proc processStepArguments(actual: NimNode, arglist: NimNode) : ArgumentNodes
 
 proc step(
     stepType: StepType, 
-    pattern0: string,
+    pattern: string,
     arglist: NimNode,
     body: NimNode) : NimNode =
-  ## Creates a step definition.
-  ## 
-  ## Suppose the step captures a number of arguments in its pattern, and
-  ## one from global context. The result will look something like this:
-  ## 
-  ##     let stepRE = re(stepPattern)
-  ##     proc stepDefinition(stepArgs: StepArgs) : StepResult =
-  ##       let actual = stepArgs.stepText.match(stepRE).get
-  ##       block:
-  ##         let arg1 : arg1Type = parseArg1(actual[0])
-  ##         ...
-  ##         let argN : argNType = parseArgN(actual[<N+1>])
-  ##         var argC1 : argcC1Type = getContextC1(ctGlobal, "argC1")
-  ##         ...
-  ##         try:
-  ##           <body>
-  ##           result = srSuccess
-  ##           setContextC1(ctGlobal, "argC1")
-  ##           ...
-  ##         except:
-  ##           result = srFail
-  ##     
-  ## stepDefinitions.add(StepDefinition(stepRE: stepRE, defn: stepDefinition))
-  ## 
-  ## Argument list syntax:
-  ## 
-  ## Arguments are specified as a parenthesized list of ``name: type`` or
-  ## ``location.name: type`` pairs. ``type`` refers to a parameter type,
-  ## which governs not only the type of the variable, but also the regexp
-  ## to recognize values in a gherkin step specificiation, and functions
-  ## to parse values and convert them from ``Any``.
-  ## 
-  ## The ``location`` field, if present, marks arguments as coming from
-  ## context rather than from the step specification. Arguments from
-  ## context are extracted from context using a key in the form 
-  ## ``location.name``. Locations supported are ``global`` ``feature``
-  ## and ``scenario``: keys with these prefixes are (re)initialized before
-  ## the start of each scenario/feature/global run, so that steps
-  ## and hooks can pass each other values.
-  ## 
-  ## Locations can also have the form `var global/feature/scenario`. The
-  ## Var prefix means they are created as "var" parameters, and copied
-  ## back into context on successful completion of the step.
 
-  let pattern = pattern0
-  let reID = genSym(nskLet, "stepRE")
-  let procID = genSym(nskProc, "stepDefinition")
-  let sdefID = genSym(nskLet, "stepDef")
-  let actualID = genSym(nskLet, "actual")
-  let bodyNode = newStmtList()
-  var bodyAndFinal = newStmtList()
-  for child in body:
-    bodyAndFinal.add(child)
-  var blockParam : string = nil
-  var iactual = -1
-  var contextArgs : seq[ContextArg] = @[]
-  for i in 0..<arglist.len:
-    let argDef = arglist[i]
-    var aname: string;
-    var aloc : string = nil;
-    var atype: string
-    var isVarType = argDef[1].kind == nnkVarTy
-    atype = if isVarType: $argDef[1][0] else: $argDef[1]
-    var ainit : NimNode
-    if argDef[0].kind == nnkDotExpr:
-      aloc = $argDef[0][0]
-      aname = $argDef[0][1]
-    else:
-      aname = $argDef[0]
-      iactual += 1
-    if aloc != nil:
-      let key = newLit("$1.$2" % [aloc, aname]);
-      let ncontext = newDotExpr(
-        newIdentNode("stepArgs"), newIdentNode("context"))
-      if isVarType:
-        bodyAndFinal.add(newCall(
-          newIdentNode("set" & capitalize(atype)),
-          ncontext, key, newIdentNode(aname)))
-      contextArgs.add((na: aname, lo: aloc, ty: atype))
-      let getID = newIdentNode("get" & capitalize(atype))
-      ainit = newCall(getID, ncontext.copy, key)  
-    elif atype == "blockParam":
-      blockParam = aname
-      atype = "string"
-      ainit = newDotExpr(newIdentNode("stepArgs"), newIdentNode("blockParam"))
-    else:
-      ainit = newCall(
-        ptID(atype, "parseFct"), 
-        newTree(nnkBracketExpr, actualID, newLit(iactual)))
-    let aimpl = newTree(nnkVarSection, newIdentDefs(
-      newIdentNode(aname), newIdentNode(atype), ainit))
-    bodyNode.add(aimpl)
-  bodyNode.add(newAssignment(
-    newIdentNode("result"), newTree(
-      nnkObjConstr,
-      newIdentNode("StepResult"), 
-      newColonExpr(newIdentNode("value"), newIdentNode("srSuccess")),
-      newColonExpr(newIdentNode("exception"), newNilLit()))))
-  bodyNode.add(newTree(
-    nnkTryStmt, bodyAndFinal, newTree(
-      nnkExceptBranch, newStmtList(
-        newAssignment(
-          newDotExpr(newIdentNode("result"), newIdentNode("value")), 
-          newIdentNode("srFail")),
-        newAssignment(
-          newDotExpr(newIdentNode("result"), newIdentNode("exception")), 
-          newCall(newIdentNode("getCurrentException")))
-        ))))
-  var wrapperParams = [
-   newIdentNode("StepResult"),
-   newIdentDefs(newIdentNode("stepArgs"), newIdentNode("StepArgs"))]
-  var procBody : NimNode
-  let nonBlockParams = arglist.len - (if blockParam == nil: 0 else: 1)
-  if nonBlockParams > 0:
-    procBody = newStmtList(
-      newLetStmt(
-        actualID, 
-        newDotExpr(
-          newDotExpr(
-            newCall(
-              newDotExpr(
-                newDotExpr(
-                  newIdentNode("stepArgs"), newIdentNode("stepText")),
-                newIdentNode("match")), 
-              reID.copy),
-            newIdentNode("get")),
-          newIdentNode("captures"))),
-      newBlockStmt(bodyNode))
+  ##[
+    Creates a step definition.
+    
+    The macros ``Given``, ``When``, ``Then``, below, are wrappers
+    around this procedure. Given a call:
+    
+    Given r"this step contains a (-?\d+)", (
+        a: int, global.b: var int, c: blockParam):
+      echo c
+      b = a
+    
+    The resulting step definition would be:
+    
+        let stepRE = re(r"this step contains a (-?\d+)")
+        proc stepDefinition(stepArgs: StepArgs) : StepResult =
+          let actual = stepArgs.stepText.match(stepRE).get.captures
+          block:
+            let a : int = parseInt(actual[0])
+            let b : int = paramTypeIntGetter(ctGlobal "b")
+            let c : string = stepArgs.blockParam
+            result = StepResult(args: stepArgs, value: srSuccess)
+            try:
+              echo c
+              b = a
+              paramTypeIntSetter(ctGlobal, "b", b)
+            except:
+              var exc = getCurrentException()
+              result.value = srFail
+              result.exception = exc
+    
+        let stepDef = StepDefinition(stepRE: stepRE, defn: stepDefinition)
+        stepDefinitions[stGiven].add(stepDef)
+    
+    Argument list syntax:
+    
+    Arguments are specified as a parenthesized list of ``name: type`` or
+    ``location.name: type`` pairs. ``type`` refers to a parameter type (sic!
+    *not* a nim type), which governs not only the (nim) type of the variable, 
+    but also the regexp to recognize values in a gherkin step 
+    specificiation, and functions to parse values and create initial values.
+    
+    The ``location`` field, if present, marks arguments as coming from
+    context rather than from the step specification. There are
+    three contexts: ``global``, ``feature`` and ``scenario`` whose 
+    lifecycles are the lifetime of the runner, the current feature and
+    the current scenario. Use contexts to pass information between
+    steps and between hooks and steps.
+    
+    When a location is present variables can also have the form `var type`. 
+    The var prefix means they are created as "var" parameters, and copied
+    back into context on successful completion of the step.
+  ]##
+
+  let stepRE = genSym(nskLet, "stepRE")
+  let nPattern = newLit(pattern)
+  let stepDefinition = genSym(nskProc, "stepDefinition")
+  let stepArgs = newIdentNode "stepArgs"
+  let actual = genSym(nskLet, "actual")
+  let stepText = newIdentNode "stepText"
+  let match = newIdentNode "match"
+  let get = newIdentNode "get"
+  let captures = newIdentNode "captures"
+  let stepDef = genSym(nskLet, "stepDef")
+  let sresult = newIdentNode "result"
+  let exc = newIdentNode "exc"
+  let (defArgs, setContext) = processStepArguments(actual, argList)
+  let stepDefinitions = newBrkt("stepDefinitions", newIdentNode($stepType))
+  let add = newIdentNode("add")
+  result = quote do:
+    let `stepRE` = re(`nPattern`)
+    proc `stepDefinition`(`stepArgs`: StepArgs) : StepResult =
+      let `actual` = `stepArgs`.`stepText`.`match`(`stepRE`).`get`.`captures`
+      block:
+        `defArgs`
+        `sresult` = StepResult(args: `stepArgs`, value: srSuccess)
+        try:
+          `body`
+          `setContext`
+        except:
+          var `exc` = getCurrentException()
+          `sresult`.value = srFail
+          `sresult`.exception = `exc`
+
+    let `stepDef` = StepDefinition(stepRE: `stepRE`, defn: `stepDefinition`)
+    `stepDefinitions` .`add`(`stepDef`)
+
+type ArgSpec = tuple
+  aname: string
+  atype: string
+  aloc: ContextType
+  avar: bool
+
+proc unpackArg(argdef: NimNode) : ArgSpec =
+  var anameN = argdef[0]
+  var atypeN = argdef[1]
+  var aname, atype : string
+  var aloc : ContextType = ctNotContext
+  var avar : bool = false
+  if anameN.kind == nnkDotExpr:
+    aloc = ctypeFor($anameN[0])
+    aname = $anameN[1]
   else:
-    procBody = bodyNode
-  result = newStmtList(
-    newLetStmt(
-      reID.copy, 
-      newCall(newIdentNode("re"), newLit(pattern))),
-    newProc(
-      procID.copy,
-      wrapperParams,
-      procBody),
-    newLetStmt(
-      sdefID.copy,
-      newTree(
-        nnkObjConstr,
-        newIdentNode("StepDefinition"),
-        newColonExpr(newIdentNode("stepType"), newIdentNode($stepType)),
-        newColonExpr(newIdentNode("stepRE"), reID.copy),
-        newColonExpr(newIdentNode("defn"), procID.copy),
-        newColonExpr(newIdentNode("expectsBlock"), newLit(blockParam != nil)))
-    ),
-    newCall(
-      newDotExpr(
-        newTree(
-          nnkBracketExpr, 
-          newIdentNode("stepDefinitions"),
-          newIdentNode($stepType)),
-        newIdentNode("add")),
-      sdefID.copy)
-  )
-  for a in contextArgs:
-    let asuffix = capitalize(a.na) & capitalize(a.lo)
-    let label = newLit("$1.$2" % [a.lo, a.na])
-    let ctxVar = genSym(nskVar, "ctx" & asuffix)
-    let atype = newIdentNode(a.ty)
-    let adef = ptID(a.ty, "default")
-    let ctxReset = genSym(nskProc, "resetCtx" & asuffix)
-    let areset = newIdentNode("reset" & capitalize(a.ty))
-    let nnot = newIdentNode("not")
-    let nhasKey = newIdentNode("hasKey")
-    let assignC = newAssignment(newBrkt("globalStepContext", label), 
-      newCall(newBrkt("toAny", atype), ctxVar))
-    let addReset = newCall(newDot(
-      newBrkt("resetStepContext", $ctype(a.lo)), "add"), ctxReset)
-    var argCoda = quote do:
-      var `ctxVar` : `atype` = `adef`
-      proc `ctxReset`() : void =
-        `areset`(globalStepContext, `label`)
-      if `nnot` globalStepContext.`nhasKey`(`label`):
-        `assignC`
-        `addReset`
-    for stm in argCoda:
-      result.add(stm)
+    aname = $anameN
+  if atypeN.kind == nnkVarTy:
+    avar = true
+    atype = $atypeN[0]
+  else:
+    atype = $atypeN
+  return (aname, atype, aloc, avar)
 
-  echo result.toStrLit.strVal
-  #echo result.treeRepr
-
+proc processStepArguments(actual : NimNode, arglist: NimNode) : ArgumentNodes =
+  var defArgs = newStmtList()
+  var setContext = newStmtList()
+  result = (defArgs, setContext)
+  var iactual = -1
+  for argdef in arglist:
+    let (aname, atype, aloc, avar) = unpackArg(argdef)
+    if aloc != ctNotContext:
+      defArgs.add newVar(aname, cast[string](nil), newCall(
+        ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
+      if avar:
+        setContext.add newCall(
+          newIdentNode(ptName(atype, "Setter")), 
+          newLit(aname), newIdentNode(aname))
+    elif atype == "blockParam":
+      defArgs.add newVar(aname, "string", newDot("stepArgs", "blockParam"))
+    else:
+      iactual += 1
+      defArgs.add newVar(aname, cast[string](nil), newCall(
+        ptName(atype, "parseFct"), newBrkt(actual, newLit(iactual))))
 
 macro Given*(
     pattern: static[string], arglist: untyped, body: untyped
@@ -251,6 +192,8 @@ macro When*(
     pattern: static[string], arglist: untyped, body: untyped
     ) : typed =
   result = step(stWhen, pattern, arglist, body)
+  mShow(result)
+
 macro Then*(
     pattern: static[string], arglist: untyped, body: untyped
     ) : untyped {.immediate.} =
@@ -270,14 +213,14 @@ when isMainModule:
   Then r"", (b: blockParam):
     echo "block: " & b
 
-  var args = StepArgs(stepText: "1", context: context)
+  var args = StepArgs(stepText: "1")
 
   var r = stepDefinitions[stGiven][0].defn(args)
   echo "result " & $r.value
   var exc = r.exception
   echo "exc " & $exc.getStackTrace()
   var a = 10;
-  args.context["global.foo"] = toAny[int](a)
+  paramTypeIntSetter(ctGlobal, "foo", a)  
   args.stepText = "yes"
   r = stepDefinitions[stWhen][0].defn(args)
   echo "result " & $r.value
