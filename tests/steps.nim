@@ -27,7 +27,9 @@ Then "reading the feature file causes an error:", (
     discard readFeature(featureStream)
   except:
     let exc = getCurrentException()
-    assert exc.msg.strip() == message.strip()
+    let amsg = exc.msg.strip()
+    let emsg = message.strip()
+    assert amsg == emsg, "$1 != $2" % [amsg, emsg]
 
 Then "the feature description is \"(.*)\"", (
     scenario.feature: Feature, description: string):
