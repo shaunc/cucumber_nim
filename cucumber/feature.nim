@@ -222,6 +222,7 @@ proc readHead(feature: Feature, stream: var LineStream): void =
       explanation.add("\n")
     else:
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
+  feature.explanation = explanation
 
 proc readBody(feature: Feature, stream: var LineStream): void =
   var comments : seq[string] = @[]

@@ -89,7 +89,7 @@ proc newVar*(
     name: string, vtype: string, val: string,
     isExport : bool = false
     ) : NimNode {.compiletime.} =
-  newDef(nnkVarSection, name, vtype, newIdentNode(val), isExport)
+  newDef(nnkVarSection, name, vtype, val, isExport)
 
 proc newLet*(
     name: string, vtype: string, val: NimNode = newEmptyNode(), 
@@ -105,7 +105,7 @@ proc newLet*(
     name: string, vtype: string, val: string,
     isExport : bool = false
     ) : NimNode {.compiletime.} =
-  newDef(nnkLetSection, name, vtype, newIdentNode(val), isExport)
+  newDef(nnkLetSection, name, vtype, val, isExport)
 
 proc newConst*(
     name: string, vtype: string, val: NimNode = newEmptyNode(), 
@@ -121,7 +121,7 @@ proc newConst*(
     name: string, vtype: string, val: string,
     isExport : bool = false
     ) : NimNode {.compiletime.} =
-  newDef(nnkConstSection, name, vtype, newIdentNode(val), isExport)
+  newDef(nnkConstSection, name, vtype, val, isExport)
 
 
 proc mShow*(n : NimNode) : void =
