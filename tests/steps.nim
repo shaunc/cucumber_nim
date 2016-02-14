@@ -15,12 +15,19 @@ declareRefPT(Feature)
 
 Given "a feature file:", (
     data: blockParam, scenario.featureStream: var Stream):
-  echo "data", data
   featureStream = newStringStream(data)
 
 When "I read the feature file", (
     scenario.featureStream: Stream, scenario.feature: var Feature):
   feature = readFeature(featureStream)
+
+Then "reading the feature file causes an error:", (
+    scenario.featureStream: Stream, message: blockParam):
+  try:
+    discard readFeature(featureStream)
+  except:
+    let exc = getCurrentException()
+    assert exc.msg.strip() == message.strip()
 
 Then "the feature description is \"(.*)\"", (
     scenario.feature: Feature, description: string):

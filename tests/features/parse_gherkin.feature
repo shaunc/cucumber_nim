@@ -15,7 +15,18 @@ Scenario: trivial feature.
   And the feature explanation is ""
   And the feature contains 0 scenarios
   And the feature contains 0 background blocks
-        
+
+Scenario: error if no feature.
+  Given a feature file:
+  """
+  """
+  Then reading the feature file causes an error:
+  """
+  Line 0: Feature must start with "Feature:".
+
+  >
+  """
+
 Scenario: feature with explanation.
   Given a feature file:
   """
@@ -52,7 +63,7 @@ Scenario: feature with two scenarios.
   And scenario 0 contains 0 steps
   And scenario 1 contains 0 steps
 
-Scenario: scenario containing a step
+Scenario: scenario containing a step.
   Given a feature file:
   """
   Feature: parse gherkin
@@ -67,4 +78,20 @@ Scenario: scenario containing a step
   And step 0 of scenario 0 is of type "Given"
   And step 0 of scenario 0 has text "nothing"
   And step 0 of scenario 0 has no block parameter
+
+Scenario: error unknown step type.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: trivial feature
+    Taken nothing
+  """
+  Then reading the feature file causes an error:
+  """
+  Line 4: Step must start with "Given", "When", "Then", "And".
+
+  >  Taken nothing
+  """
+
 

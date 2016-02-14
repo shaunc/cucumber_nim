@@ -71,8 +71,9 @@ type
 const keywords = ["Feature", "Scenario"]
 let headRE = re("($1): " % (keywords.mapIt "(?:$1)" % it).join("|"))
 
-proc newSyntaxError(line : Line, message : string) : ref FeatureSyntaxError = 
-  let fullMessage = "Line $1: $2\n\n>  $3" % [$line.number, message, line.content]
+proc newSyntaxError(line : Line, message : string, adjustLineNumber = 0) : ref FeatureSyntaxError = 
+  let fullMessage = "Line $1: $2\n\n>  $3" % [
+    $(line.number + adjustLineNumber), message, line.content]
   return newException(FeatureSyntaxError, fullMessage)
 
 proc readFeature*(path: string): Feature
@@ -149,7 +150,7 @@ proc newLine(line: string, ltype: LineType, number: int): Line =
 proc headKey(line: Line) : string =
   return (line.content.match headRE).get.captures[0]
 
-proc nextLine(stream: var LineStream) : Line = 
+proc nextLine(stream: var LineStream, skipBlankLines : bool = true) : Line = 
   var text = ""
   var line = ""
   while true:
@@ -160,7 +161,7 @@ proc nextLine(stream: var LineStream) : Line =
       return newLine(text, ltEOF, stream.lineNumber)
     stream.lineNumber += 1
     line = text.strip()
-    if line.len > 0:
+    if line.len > 0 or not skipBlankLines:
       break
 
   if line[0] == '#':
@@ -179,6 +180,7 @@ proc pushback(stream: var LineStream, line: Line): void =
   if stream.last != nil:
     raise newException(Exception, "Cannot push back 2nd line")
   stream.last = repeat(' ', line.indent) & line.content
+  stream.lineNumber -= 1
 
 proc readPreamble(feature: Feature, stream: var LineStream): void = 
   while true:
@@ -259,7 +261,7 @@ proc addStep(steps: var seq[Step], line: Line) : void =
     raise newSyntaxError(line, 
       "Step must start with \"Given\", \"When\", \"Then\", \"And\".")
   var stepType = stepTypeM.get.captures[0]
-  var step = Step(description: text.copy, lineNumber: line.number)
+  var step = Step(description: text.substr, lineNumber: line.number)
   if stepType == "And":
     if steps.len == 0:
       raise newSyntaxError(line, "First step cannot be \"And\"")
@@ -315,13 +317,13 @@ proc readScenario(
 proc readBlock(step: Step, stream: var LineStream, indent: int) : void =
   var content = ""
   while true:
-    let line = stream.nextLine
-    if line.indent < indent:
+    let line = stream.nextLine(false)
+    if line.indent < indent and line.content.strip().len != 0:
       raise newSyntaxError(line, "Unexpected end of multiline block.")
     if line.content == "\"\"\"":
       step.blockParam = content
       break
-    content.add(repeat(" ", line.indent - indent) & line.content & "\n")
+    content.add(repeat(" ", max(0, line.indent - indent)) & line.content & "\n")
 
 proc readExamples(
     scenario: Scenario, stream: var LineStream, indent: int
