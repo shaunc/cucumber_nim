@@ -1,6 +1,6 @@
 # parse_gherkin.feature
 
-Feature: parse gherkin
+Feature: Parse gherkin
   As a nim developer
   In order to develop with more agility
   I want to interpret ".feature" files written in gherkin
@@ -14,7 +14,7 @@ Scenario: trivial feature.
   Then the feature description is "parse gherkin"
   And the feature explanation is ""
   And the feature contains 0 scenarios
-  And the feature contains 0 background blocks
+  And the feature has no background block
 
 Scenario: a feature may be preceeded by blank lines.
   Given a feature file:
@@ -27,7 +27,7 @@ Scenario: a feature may be preceeded by blank lines.
   Then the feature description is "parse gherkin"
   And the feature explanation is ""
   And the feature contains 0 scenarios
-  And the feature contains 0 background blocks
+  And the feature has no background block
 
 Scenario: feature files must contain a feature.
   Given a feature file:
@@ -73,7 +73,7 @@ Scenario: A feature may have an explanation.
   When I read the feature file
   Then the feature explanation is "Because I want to"
   And the feature contains 0 scenarios
-  And the feature contains 0 background blocks
+  And the feature has no background block
 
 Scenario: A feature may have a scenario.
   Given a feature file:
@@ -185,8 +185,80 @@ Scenario: A scenario's first step may not start with "And".
   >  And nothing
   """
 
-# Scenario: The feature may contain background
+Scenario: A step may include a block parameter.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: trivial feature
+    Given block:
+    """
+    The block
+    """
+  """
+  When I read the feature file
+  Then step 0 of scenario 0 has block parameter:
+  """
+  The block
+  """
+
+Scenario: The feature may contain background
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Background: trivial background
+  """
+  When I read the feature file
+  Then the feature has a background block
+  And the background contains 0 steps
+
+Scenario: The feature may not contain more than one background section
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Background: trivial background
+
+  Background: more trivial background
+  """
+  Then reading the feature file causes an error:
+  """
+  Line 5: Feature may not have more than one background section.
+
+  >  Background: more trivial background 
+  """
+
+Scenario: background may contain a step.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Background: trivial background
+    Given nothing
+  """
+  When I read the feature file
+  Then the background contains 1 steps
+  And step 0 of the background is of type "Given"
+  And step 0 of the background has text "nothing"
+  And step 0 of the background has no block parameter
+
+
 # scenario outline
-# example blocks
-# tags
+# The feature may contain a scenario outline
+# A scenario outline may contain an examples section
+# A scenario outline may contain multipe examples sections
+# A feature may have a tag
+# A feature may have multple tags
+# A feature may have tags specified on multiple lines
+# A scenario may have a tag
+# A scenario may have multiple tags
+# A feature file may contain comments
+# Comments before feature are associated with the feature
+# comments before scenario are associated with the scenario
+# comments in scenario are associated with the scenario
+# commends in tag lines are ignored
+# comment start character in scenario heading is part of heading
+# comment start character in steps is part of the step
+
 

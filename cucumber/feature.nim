@@ -30,7 +30,7 @@ type
 
     name*: string
     explanation*: string
-    background*: seq[Scenario]
+    background*: Scenario
     scenarios*: seq[Scenario]
 
   ScenarioObj* = object of Node
@@ -68,7 +68,7 @@ type
     lineNumber: int
     last: string
 
-const keywords = ["Feature", "Scenario"]
+const keywords = ["Feature", "Scenario", "Background"]
 let headRE = re("($1): " % (keywords.mapIt "(?:$1)" % it).join("|"))
 
 proc newSyntaxError(line : Line, message : string, adjustLineNumber = 0) : ref FeatureSyntaxError = 
@@ -94,7 +94,7 @@ proc newFeature(name: string): Feature =
     name: name,
     comments: @[],
     tags: @[],
-    background: @[],
+    background: nil,
     scenarios: @[]
   )
 proc newScenario(feature: Feature, text: string) : Scenario =
@@ -285,7 +285,11 @@ proc readScenario(
   of "Scenario", "Scenario Outline":
     feature.scenarios.add result
   of "Background":
-    feature.background.add result
+    if feature.background == nil:
+      feature.background = result
+    else:
+      raise newSyntaxError(
+        head, "Feature may not have more than one background section.")
   else:
     raise newSyntaxError(head, "Unexpected start of $1." % key)
 
@@ -320,7 +324,7 @@ proc readBlock(step: Step, stream: var LineStream, indent: int) : void =
     let line = stream.nextLine(false)
     if line.indent < indent and line.content.strip().len != 0:
       raise newSyntaxError(line, "Unexpected end of multiline block.")
-    if line.content == "\"\"\"":
+    if line.content == "\"\"\"" and line.indent <= indent:
       step.blockParam = content
       break
     content.add(repeat(" ", max(0, line.indent - indent)) & line.content & "\n")

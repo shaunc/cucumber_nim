@@ -43,18 +43,16 @@ Then r"the feature contains (\d+) scenarios", (
     scenario.feature: Feature, nscenarios: int):
   assert feature.scenarios.len == nscenarios
 
-Then r"the feature contains (\d+) background blocks", (
-    scenario.feature: Feature, nbackground: int):
-  assert feature.background.len == nbackground
+Then r"the feature has no background block", (
+    scenario.feature: Feature):
+  assert feature.background == nil
 
 Then r"scenario (\d+) contains (\d+) steps", (
     scenario.feature: Feature, iscenario: int, nsteps: int):
   let scenario = feature.scenarios[iscenario]
   assert scenario.steps.len == nsteps
 
-Then r"""step (\d+) of scenario (\d+) is of type \"(\w+)\"""", (
-    scenario.feature: Feature, istep: int, iscenario: int, typeName: string):
-  let step = feature.scenarios[iscenario].steps[istep]
+proc checkStepType(step: Step, typeName: string): void =
   case typeName
     of "Given": assert step.stepType == stGiven
     of "When": assert step.stepType == stWhen
@@ -62,12 +60,47 @@ Then r"""step (\d+) of scenario (\d+) is of type \"(\w+)\"""", (
     else:
       raise newException(AssertionError, "unknown step type " & typeName)
 
+Then r"""step (\d+) of scenario (\d+) is of type \"(\w+)\"""", (
+    scenario.feature: Feature, istep: int, iscenario: int, typeName: string):
+  let step = feature.scenarios[iscenario].steps[istep]
+  checkStepType(step, typeName)
+
+Then r"""step (\d+) of the background is of type \"(\w+)\"""", (
+    scenario.feature: Feature, istep: int, typeName: string):
+  let step = feature.background.steps[istep]
+  checkStepType(step, typeName)
+
 Then r"""step (\d+) of scenario (\d+) has text \"(.*)\"""", (
     scenario.feature: Feature, istep: int, iscenario: int, text: string):
   let step = feature.scenarios[iscenario].steps[istep]
+  assert step.text == text
+
+Then r"""step (\d+) of the background has text \"(.*)\"""", (
+    scenario.feature: Feature, istep: int, text: string):
+  let step = feature.background.steps[istep]
   assert step.text == text
 
 Then r"""step (\d+) of scenario (\d+) has no block parameter""", (
     scenario.feature: Feature, istep: int, iscenario: int):
   let step = feature.scenarios[iscenario].steps[istep]
   assert step.blockParam == nil
+
+Then r"""step (\d+) of the background has no block parameter""", (
+    scenario.feature: Feature, istep: int):
+  let step = feature.background.steps[istep]
+  assert step.blockParam == nil
+
+Then r"step (\d+) of scenario (\d+) has block parameter:", (
+    scenario.feature: Feature, istep: int, iscenario: int, 
+    blockParam: blockParam):
+  let step = feature.scenarios[iscenario].steps[istep]
+  assert step.blockParam.strip() == blockParam.strip()
+
+Then r"the feature has a background block", (
+    scenario.feature: Feature):
+  assert feature.background != nil
+
+Then r"the background contains (\d+) steps", (
+    scenario.feature: Feature, nsteps: int):
+  let background = feature.background
+  assert background.steps.len == nsteps
