@@ -273,9 +273,23 @@ Scenario: A scenario outline may include an example section.
   And example 0 of scenario 0 has 1 column
   And column 0 of example 0, scenario 0 is named "nsheep"
 
+Scenario: A scenario outline may include multiple examples sections
+  Feature: parse gherkin
 
-# A scenario outline may contain an examples section
-# A scenario outline may contain multipe examples sections
+  Scenario Outline: trivial scenario outline
+    Given I see <nsheep> sheep and <nfish> fish
+
+    Examples:
+      | nsheep |
+      | 1      |
+      | 2      |
+    Examples:
+      | nfish |
+      | 3     | 
+      | 8     |
+  """
+  Then scenario 0 contains 2 examples
+
 
 # tables in steps
 # A feature may have a tag

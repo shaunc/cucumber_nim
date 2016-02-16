@@ -105,7 +105,7 @@ Then r"the background contains (\d+) steps", (
   let background = feature.background
   assert background.steps.len == nsteps
 
-Then r"scenario (\d+) contains (\d+) example", (
+Then r"scenario (\d+) contains (\d+) examples?", (
     scenario.feature: Feature, iscenario: int, nexamples: int):
   let scenario = feature.scenarios[iscenario]
   assert scenario.examples.len == nexamples
