@@ -349,6 +349,10 @@ proc readExamples(
     if result.columns.len == 0:
       result.columns.add row
     else:
+      if row.len != result.columns.len:
+        raise newSyntaxError(
+          line, "Table row $1 elements, but $2 columns in table." % [
+            $row.len, $result.columns.len])
       result.values.add row
 
 when isMainModule:

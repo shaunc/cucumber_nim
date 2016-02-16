@@ -274,6 +274,8 @@ Scenario: A scenario outline may include an example section.
   And column 0 of example 0, scenario 0 is named "nsheep"
 
 Scenario: A scenario outline may include multiple examples sections
+  Given a feature file:
+  """
   Feature: parse gherkin
 
   Scenario Outline: trivial scenario outline
@@ -288,8 +290,28 @@ Scenario: A scenario outline may include multiple examples sections
       | 3     | 
       | 8     |
   """
+  When I read the feature file
   Then scenario 0 contains 2 examples
 
+Scenario: Examples must have as many cells in each row as columns.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario Outline: trivial scenario outline
+    Given I see <nsheep> sheep and <nfish> fish
+
+    Examples:
+      | nsheep |
+      | 1      | foo |
+      | 2      |
+  """
+  Then reading the feature file causes an error:
+  """
+  Line 8: Table row 2 elements, but 1 columns in table.
+
+  >  | 1      | foo |
+  """
 
 # tables in steps
 # A feature may have a tag
