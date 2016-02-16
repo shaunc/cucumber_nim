@@ -80,7 +80,7 @@ Scenario: A feature may have a scenario.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
   """
   When I read the feature file
   Then the feature contains 1 scenarios
@@ -108,7 +108,7 @@ Scenario: scenario may contain a step.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     Given nothing
   """
   When I read the feature file
@@ -122,7 +122,7 @@ Scenario: error unknown step type.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     Taken nothing
   """
   Then reading the feature file causes an error:
@@ -137,7 +137,7 @@ Scenario: scenario may contain multiple steps.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     Given nothing
     When nothing
     Then nothing
@@ -153,7 +153,7 @@ Scenario: subsequent steps starting with "And" have type of step before.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     Given nothing
     And nothing else
     When nothing
@@ -175,7 +175,7 @@ Scenario: A scenario's first step may not start with "And".
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     And nothing
   """
   Then reading the feature file causes an error:
@@ -190,7 +190,7 @@ Scenario: A step may include a block parameter.
   """
   Feature: parse gherkin
 
-  Scenario: trivial feature
+  Scenario: trivial scenario
     Given block:
     """
     The block
@@ -243,11 +243,41 @@ Scenario: background may contain a step.
   And step 0 of the background has text "nothing"
   And step 0 of the background has no block parameter
 
+Scenario: A feature may include a scenario outline.
+  Given a feature file:
+  """
+  Feature: parse gherkin
 
-# scenario outline
-# The feature may contain a scenario outline
+  Scenario Outline: trivial scenario outline
+  """
+  When I read the feature file
+  Then the feature contains 1 scenarios
+  And scenario 0 contains 0 steps
+
+Scenario: A scenario outline may include an example section.
+  Given a feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario Outline: trivial scenario outline
+    Given I see <nsheep> sheep
+
+    Examples:
+      | nsheep |
+      | 1      |
+      | 2      |
+  """
+  When I read the feature file
+  Then the feature contains 1 scenarios
+  And scenario 0 contains 1 example
+  And example 0 of scenario 0 has 1 column
+  And column 0 of example 0, scenario 0 is named "nsheep"
+
+
 # A scenario outline may contain an examples section
 # A scenario outline may contain multipe examples sections
+
+# tables in steps
 # A feature may have a tag
 # A feature may have multple tags
 # A feature may have tags specified on multiple lines

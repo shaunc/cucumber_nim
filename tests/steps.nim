@@ -104,3 +104,20 @@ Then r"the background contains (\d+) steps", (
     scenario.feature: Feature, nsteps: int):
   let background = feature.background
   assert background.steps.len == nsteps
+
+Then r"scenario (\d+) contains (\d+) example", (
+    scenario.feature: Feature, iscenario: int, nexamples: int):
+  let scenario = feature.scenarios[iscenario]
+  assert scenario.examples.len == nexamples
+
+Then r"example (\d+) of scenario (\d+) has (\d+) column", (
+    scenario.feature: Feature, iexample: int, iscenario: int, ncolumns int):
+  let example = feature.scenarios[iscenario].examples[iexample]
+  assert example.columns.len == ncolumns
+
+  
+Then r"""column (\d+) of example (\d+), scenario (\d+) is named \"([^\"]*)\"""", (
+    scenario.feature: Feature, icolumn: int, iexample: int, iscenario: int, columnName: string):
+  let example = feature.scenarios[iscenario].examples[iexample]
+  let column = example.columns[icolumn]
+  assert column == columnName

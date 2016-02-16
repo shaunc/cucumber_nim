@@ -46,7 +46,7 @@ type
     lineNumber*: int
 
   ExamplesObj* = object of Node
-    parameters*: seq[string]
+    columns*: seq[string]
     values*: seq[seq[string]]
 
   ## feature file contains bad syntax
@@ -68,8 +68,9 @@ type
     lineNumber: int
     last: string
 
-const keywords = ["Feature", "Scenario", "Background"]
-let headRE = re("($1): " % (keywords.mapIt "(?:$1)" % it).join("|"))
+const keywords = [
+  "Feature", "Scenario", "Scenario Outline", "Background", "Examples"]
+let headRE = re("(?i)($1): ?" % (keywords.mapIt "(?:$1)" % it).join("|"))
 
 proc newSyntaxError(line : Line, message : string, adjustLineNumber = 0) : ref FeatureSyntaxError = 
   let fullMessage = "Line $1: $2\n\n>  $3" % [
@@ -103,7 +104,8 @@ proc newScenario(feature: Feature, text: string) : Scenario =
     description: description,
     parent: feature,
     steps: @[],
-    comments: @[])
+    comments: @[],
+    examples: @[])
 
 proc readFeature*(path: string) : Feature = 
   let file = open(path)
@@ -140,7 +142,6 @@ proc readFeature(feature: Feature, fstream: Stream): void =
 
 proc newLine(line: string, ltype: LineType, number: int): Line =
   let sline = line.strip(trailing = false)
-  #echo "$1($3): $2" % [$number, sline.strip, $ltype]
   return Line(
       number: number,
       ltype: ltype,
@@ -148,7 +149,7 @@ proc newLine(line: string, ltype: LineType, number: int): Line =
       content: sline.strip)
 
 proc headKey(line: Line) : string =
-  return (line.content.match headRE).get.captures[0]
+  return capitalize((line.content.match headRE).get.captures[0])
 
 proc nextLine(stream: var LineStream, skipBlankLines : bool = true) : Line = 
   var text = ""
@@ -334,7 +335,7 @@ proc readExamples(
     ) : void = 
   let result = Examples(
     parent: scenario,
-    parameters : @[],
+    columns : @[],
     values: @[])
   scenario.examples.add result
   while true:
@@ -344,9 +345,9 @@ proc readExamples(
       break
     if line.content.match(re("|.*|$")).isNone:
       raise newSyntaxError(line, "Malformed examples table.")
-    let row = line.content.split('|')[1..^1]
-    if result.parameters.len == 0:
-      result.parameters.add row
+    let row = line.content.split('|')[1..^2].mapIt it.strip()
+    if result.columns.len == 0:
+      result.columns.add row
     else:
       result.values.add row
 
