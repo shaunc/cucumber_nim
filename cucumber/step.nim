@@ -18,22 +18,36 @@ export parameter.resetContext
 
 type
 
-  StepDefinition* = object
+  StepDefinitionObj* = object
     stepType*: StepType
     stepRE*: Regex
     defn*: proc(stepArgs: StepArgs) : StepResult
     expectsBlock*: bool
+  StepDefinition* = ref StepDefinitionObj
 
-  StepDefinitions* = array[StepType, seq[StepDefinition]]
+  StepDefinitionsObj* = object
+    items: array[StepType, seq[StepDefinition]]
+  StepDefinitions* = ref StepDefinitionsObj
 
 var stGiven0 : seq[StepDefinition] = @[]
 var stWhen0 : seq[StepDefinition] = @[]
 var stThen0 : seq[StepDefinition] = @[]
-var stepDefinitions* : StepDefinitions = [stGiven0, stWhen0, stThen0]
+var stepDefinitions* : StepDefinitions = StepDefinitions(
+  items: [stGiven0, stWhen0, stThen0])
 
+proc `[]`*(defs: StepDefinitions, stepType: StepType) : var seq[StepDefinition] = 
+  defs.items[stepType]
 
-proc ctypeFor(cname: string) : ContextType =
-  case cname 
+proc stepTypeFor*(stName: string) : StepType {.procvar.} =
+  case stName.substr().toLower
+  of "given": return stGiven
+  of "when": return stWhen
+  of "then": return stThen
+  else:
+    raise newException(Exception, "Unexpected step type name \"$1\"" % stName)
+
+proc contextTypeFor(cname: string) : ContextType =
+  case cname.substr().toLower
   of "global": result = ctGlobal
   of "feature": result = ctFeature
   of "scenario": result = ctScenario
@@ -156,7 +170,7 @@ proc unpackArg(argdef: NimNode) : ArgSpec =
   var aloc : ContextType = ctNotContext
   var avar : bool = false
   if anameN.kind == nnkDotExpr:
-    aloc = ctypeFor($anameN[0])
+    aloc = contextTypeFor($anameN[0])
     aname = $anameN[1]
   else:
     aname = $anameN

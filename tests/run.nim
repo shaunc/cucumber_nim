@@ -2,7 +2,8 @@
 # tests/run.nim
 
 import "../cucumber"
-import "./steps"
+import "./steps/featureSteps"
+import "./steps/stepDefinitionSteps"
 
 when isMainModule:
   withDir("./tests"):

@@ -2,8 +2,8 @@
 
 Feature: Parse gherkin
   As a nim developer
-  In order to develop with more agility
-  I want to interpret ".feature" files written in gherkin
+  In order to specify what I want my code to do
+  I want a tool that interprets ".feature" files written in gherkin
 
 Scenario: trivial feature.
   Given a feature file:
