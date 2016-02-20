@@ -17,9 +17,6 @@ Scenario: trival definition:
   Then step "given" 0 has pattern "a step definition:"
   Then step "given" 0 takes 0 arguments from step text.
   Then step "given" 0 takes 0 arguments from context.
-  Then step "given" 0 takes 0 arguments from examples.
+  Then step "given" 0 takes 0 arguments from outline examples.
   Then step "given" 0 expects no block.
-  Then running step 0 produces output:
-  """
-  hello
-  """
+  Then running step "given" 0 succeeds.
