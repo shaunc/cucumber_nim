@@ -26,5 +26,7 @@ type
     ctGlobal,
     ctFeature,
     ctScenario,
+    ctTable,
+    ctQuote,
     ctNotContext
 

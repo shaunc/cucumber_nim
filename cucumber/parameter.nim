@@ -57,7 +57,7 @@ proc cttName(name: string) : string {.compiletime.} =
 
 macro declareTypeName(name: static[string], ptype: untyped) : untyped =
   result = newVar(
-    ptName(name, "typeName"), cast[string](nil), newLit($ptype), true)
+    ptName(name, "typeName"), cast[string](nil), ptype.toStrLit, true)
 
 macro declareParseFct(
     name: static[string], ptype: untyped, parseFct: untyped) : untyped =
@@ -77,7 +77,7 @@ macro declareContextList(name : static[string], ptype: untyped) : untyped =
 macro declareContextInst(name: static[string], ptype: untyped) : untyped =
   let cInit = newBrkt("newContext", ptype)
   let clistInit = quote do:
-    [`cInit`(), `cInit`(),`cInit`(), `cInit`(),]
+    [`cInit`(), `cInit`(), `cInit`(), `cInit`(), `cInit`(), `cInit`(),]
   result = newStmtList(newVar(
     ptName(name, "context"), cttName(name), clistInit, isExport = true))
 
@@ -195,5 +195,11 @@ proc parseString*(s: string) : string = s
 declarePT("string", string, parseString, newStringA, r"(.*)")
 
 ## `blockParam` type is special: string filled from step block parameter
-declarePT("blockParam", string, parseString, newStringA, nil)
+## declarePT("blockParam", string, parseString, newStringA, nil)
+
+proc newSeqB[T]() : seq[T] = newSeq[T]()
+
+declarePT("seq[int]", seq[int], nil, newSeqB[int], nil)
+declarePT("seq[string]", seq[string], nil, newSeqB[string], nil)
+declarePT("seq[bool]", seq[bool], nil, newSeqB[bool], nil)
 

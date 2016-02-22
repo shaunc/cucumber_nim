@@ -22,12 +22,15 @@ type
     stepType*: StepType
     stepRE*: Regex
     defn*: proc(stepArgs: StepArgs) : StepResult
-    expectsBlock*: bool
+    blockParamName*: string
   StepDefinition* = ref StepDefinitionObj
 
   StepDefinitionsObj* = object
     items: array[StepType, seq[StepDefinition]]
   StepDefinitions* = ref StepDefinitionsObj
+
+  ## feature file contains bad syntax
+  StepDefinitionError = object of ValueError
 
 var stGiven0 : seq[StepDefinition] = @[]
 var stWhen0 : seq[StepDefinition] = @[]
@@ -51,6 +54,8 @@ proc contextTypeFor(cname: string) : ContextType =
   of "global": result = ctGlobal
   of "feature": result = ctFeature
   of "scenario": result = ctScenario
+  of "quote": result = ctQuote
+  of "column": result = ctTable
   else:
     raise newException(Exception, "unknown context " & cname)
 
@@ -58,7 +63,7 @@ type
   ArgumentNodes = tuple
     defArgs: NimNode
     setContext: NimNode
-    expectsBlock: NimNode
+    blockParamName: NimNode
 
 proc processStepArguments(actual: NimNode, arglist: NimNode) : ArgumentNodes
 
@@ -75,7 +80,7 @@ proc step(
     around this procedure. Given a call:
     
     Given r"this step contains a (-?\d+)", (
-        a: int, global.b: var int, c: blockParam):
+        a: int, global.b: var int, quote.c: string, column.d: seq[int]):
       echo c
       b = a
     
@@ -86,8 +91,9 @@ proc step(
           let actual = stepArgs.stepText.match(stepRE).get.captures
           block:
             let a : int = parseInt(actual[0])
-            let b : int = paramTypeIntGetter(ctGlobal "b")
-            let c : string = stepArgs.blockParam
+            let b : int = paramTypeIntGetter(ctGlobal, "b")
+            let c : string = paramTypeSeqIntGetter(ctQuote, "c")
+            let d : seq[int] = paramTypeSeqIntGetter(ctTable, "d")
             result = StepResult(args: stepArgs, value: srSuccess)
             try:
               echo c
@@ -99,7 +105,7 @@ proc step(
               result.exception = exc
     
         let stepDef = StepDefinition(
-          stepRE: stepRE, defn: stepDefinition, expectsBlock: false)
+          stepRE: stepRE, defn: stepDefinition, blockParamName: "c")
         stepDefinitions[stGiven].add(stepDef)
     
     Argument list syntax:
@@ -111,8 +117,10 @@ proc step(
     specificiation, and functions to parse values and create initial values.
     
     The ``location`` field, if present, marks arguments as coming from
-    context rather than from the step specification. There are
-    three contexts: ``global``, ``feature`` and ``scenario`` whose 
+    somewhere besides the step specification: context, block quote or
+    table. 
+
+    There are three contexts: ``global``, ``feature`` and ``scenario`` whose 
     lifecycles are the lifetime of the runner, the current feature and
     the current scenario. Use contexts to pass information between
     steps and between hooks and steps.
@@ -134,7 +142,7 @@ proc step(
   let stepDef = genSym(nskLet, "stepDef")
   let sresult = newIdentNode "result"
   let exc = newIdentNode "exc"
-  let (defArgs, setContext, expectsBlock) = processStepArguments(actual, argList)
+  let (defArgs, setContext, blockParamName) = processStepArguments(actual, argList)
   let stepDefinitions = newBrkt("stepDefinitions", newIdentNode($stepType))
   let add = newIdentNode("add")
   result = quote do:
@@ -153,7 +161,7 @@ proc step(
           `sresult`.exception = `exc`
 
     let `stepDef` = StepDefinition(
-      stepRE: `stepRE`, defn: `stepDefinition`, expectsBlock: `expectsBlock`)
+      stepRE: `stepRE`, defn: `stepDefinition`, blockParamName: `blockParamName`)
     `stepDefinitions` .`add`(`stepDef`)
   #mShow(result)
 
@@ -184,25 +192,29 @@ proc unpackArg(argdef: NimNode) : ArgSpec =
 proc processStepArguments(actual : NimNode, arglist: NimNode) : ArgumentNodes =
   var defArgs = newStmtList()
   var setContext = newStmtList()
-  let expectsBlock = newLit(false)
-  result = (defArgs, setContext, expectsBlock)
+  let blockParamName = newNilLit()
+  result = (defArgs, setContext, blockParamName)
   var iactual = -1
   for argdef in arglist:
     let (aname, atype, aloc, avar) = unpackArg(argdef)
     if aloc != ctNotContext:
       if avar:
+        if aloc == ctQuote:
+          raise newException(
+            StepDefinitionError, "Block quote may not be `var`.")
+        if aloc == ctTable:
+          raise newException(
+            StepDefinitionError, "Step table column may not be `var`.")
         defArgs.add newVar(aname, cast[string](nil), newCall(
           ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
         setContext.add newCall(
           newIdentNode(ptName(atype, "Setter")), 
           newIdentNode($aloc), newLit(aname), newIdentNode(aname))
       else:
+        if aloc == ctQuote:
+          result.blockParamName = aname.newLit
         defArgs.add newLet(aname, cast[string](nil), newCall(
           ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
-
-    elif atype == "blockParam":
-      defArgs.add newLet(aname, "string", newDot("stepArgs", "blockParam"))
-      result.expectsBlock = newLit(true)
     else:
       iactual += 1
       defArgs.add newLet(aname, cast[string](nil), newCall(
@@ -234,7 +246,7 @@ when isMainModule:
   When r"((?:yes)|(?:no))", (global.foo: int, bar: bool):
    echo "hello: " & $(foo + 1) & " " & $bar
 
-  Then r"", (b: blockParam):
+  Then r"", (quote.b: string):
     echo "block: " & b
 
   var args = StepArgs(stepText: "1")
@@ -248,4 +260,7 @@ when isMainModule:
   args.stepText = "yes"
   r = stepDefinitions[stWhen][0].defn(args)
   echo "result " & $r.value
+  paramTypeStringSetter(ctQuote, "b", "hello")
+  args.stepText = ""
+  r = stepDefinitions[stThen][0].defn(args)
 

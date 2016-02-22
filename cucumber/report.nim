@@ -40,9 +40,13 @@ let resultColor: Table[StepResultValue, ForegroundColor] = [
   (srNoDefinition, fgMagenta)].toTable
 {.pop.}
 
-proc setResultColor(file: File, resultValue: StepResultValue) : void =
+proc setColor(file: File, color: ForegroundColor) : void =
   if isatty(file):
-    setForegroundColor(file, resultColor[resultValue])
+    setForegroundColor(file, color)
+
+
+proc setResultColor(file: File, resultValue: StepResultValue) : void =
+  setColor(file, resultColor[resultValue])
 
 template resetColor(file: File, body: untyped) : untyped =
   try:
@@ -60,6 +64,7 @@ proc basicReporter*(results: ScenarioResults, file: File): void =
     for i, sresult in results:
       if lastFeature != sresult.feature.description:
         lastFeature = sresult.feature.description
+        setColor(file, fgBlack)
         if i > 0:
           file.writeLine("\n")
         file.writeLine("$1:\n" % lastFeature)

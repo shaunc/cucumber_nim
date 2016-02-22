@@ -6,6 +6,7 @@ import nre
 import "./types"
 import "./feature"
 import "./step"
+import "./parameter"
 
 export Scenario, Feature
 
@@ -39,10 +40,10 @@ proc matchStepDefinition(
     var isMatch = step.text.match(defn.stepRE)
     #echo step.text, defn.stepRE.pattern, isMatch.isSome
     if isMatch.isSome:
-      if defn.expectsBlock and step.blockParam == nil:
+      if defn.blockParamName != nil and step.blockParam == nil:
         raise newNoDefinitionForStep(
           step, "Step definition expects block parameter.")
-      if not defn.expectsBlock and step.blockParam != nil:
+      if defn.blockParamName == nil and step.blockParam != nil:
         raise newNoDefinitionForStep(
           step, "Step definition does not take block parameter.")
       return defn
@@ -63,11 +64,12 @@ proc runner*(features: seq[Feature]) : ScenarioResults =
       var badstep : Step
       try:
         for i, step in scenario.steps:
+          #echo "step ", step.text
           badstep = step
           let sd = matchStepDefinition(step, stepDefinitions[step.stepType])
           var args = StepArgs(stepText: step.text)
-          if sd.expectsBlock:
-            args.blockParam = step.blockParam
+          if sd.blockParamName != nil:
+            paramTypeStringSetter(ctQuote, sd.blockParamName, step.blockParam)
           sresult = sd.defn(args)
           if sresult.value != srSuccess:
             break
@@ -84,7 +86,7 @@ proc runner*(features: seq[Feature]) : ScenarioResults =
 
 when isMainModule:
 
-  Given "a simple feature file:", (data: blockParam):
+  Given "a simple feature file:", (quote.data: string):
     echo "file len " & $data.len
 
   var features : seq[Feature] = @[]
