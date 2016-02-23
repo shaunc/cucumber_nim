@@ -51,7 +51,7 @@ proc stepTypeFor*(stName: string) : StepType {.procvar.} =
   else:
     raise newException(Exception, "Unexpected step type name \"$1\"" % stName)
 
-proc contextTypeFor(cname: string) : ContextType =
+proc contextTypeFor*(cname: string) : ContextType =
   case cname.substr().toLower
   of "global": result = ctGlobal
   of "feature": result = ctFeature

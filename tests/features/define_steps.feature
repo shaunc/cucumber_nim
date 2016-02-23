@@ -28,7 +28,13 @@ Scenario Outline: trival definition of <stepType>.
     | When |
     | Then |
 
-# TODO: check wrapper generation fails if step has invalid body?
+Scenario: definition pattern includes type regexes for placeholders.
+  Given a step definition:
+  """
+    Given "a <foo>", (foo: int):
+      discard foo
+  """
+  Then step Given 0 has pattern "a (-?\d+)"
 
 Scenario: exception causes failure.
   Given a step definition:
@@ -51,8 +57,25 @@ Scenario: reads argument from step text.
   Then running step Given 0 succeeds with text "a 1"
   Then running step Given 0 fails with text "a 0"
 
-# convert to outline: vary over context
-Scenario: reads argument from context.
+Scenario: reads argument <value> from <context> context.
+  Given a step definition:
+  """
+  Given "a step definition:", (<context>.a: int):
+    assert a == 1
+  """
+  When <context> context parameter a is <value>
+  Then running step Given 0 <succeedsOrFails>.
+
+  Examples:
+  | context  |
+  | global   |
+  | feature  |
+  | scenario |
+
+  Examples:
+  | value | succeedsOrFails |
+  | 0     | fails            |
+  | 1     | succeeds         |
 
 # context args
 # var context arg
