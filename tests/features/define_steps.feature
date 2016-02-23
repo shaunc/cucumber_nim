@@ -74,8 +74,29 @@ Scenario: reads argument <value> from <context> context.
 
   Examples:
   | value | succeedsOrFails |
-  | 0     | fails            |
-  | 1     | succeeds         |
+  | 0     | fails           |
+  | 1     | succeeds        |
+
+Scenario: writes argument <value> to <context> context.
+  Given a step definition:
+  """
+  Given "a step definition:", (<context>.a: var int):
+    a = <value>
+  """
+  Then running step Given 0 succeeds.
+  Then <context> context parameter a is <value>
+
+  Examples:
+  | context  |
+  | global   |
+  | feature  |
+  | scenario |
+
+  Examples:
+  | value |
+  | 0     |
+  | 1     |
+
 
 # context args
 # var context arg
