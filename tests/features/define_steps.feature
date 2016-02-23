@@ -22,7 +22,7 @@ Scenario: trival definition:
   Then step "given" 0 expects no block.
   Then running step "given" 0 succeeds.
 
-# check wrapper generation fails if step has invalid body?
+# TODO: check wrapper generation fails if step has invalid body?
 
 Scenario: exception causes failure.
   Given a step definition:
@@ -45,7 +45,9 @@ Scenario: reads argument from step text.
   Then running step "given" 0 succeeds with text "a 1"
   Then running step "given" 0 fails with text "a 0"
 
-# text arg
+# convert to outline: vary over context
+Scenario: reads argument from context.
+
 # context args
 # var context arg
 

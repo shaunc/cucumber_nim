@@ -17,12 +17,14 @@ export types.StepArgs
 export parameter.resetContext
 
 type
+  ColumnSetter* = proc(sval: string): void
 
   StepDefinitionObj* = object
     stepType*: StepType
     stepRE*: Regex
     defn*: proc(stepArgs: StepArgs) : StepResult
     blockParamName*: string
+    columns: TableRef[string, ColumnSetter]
   StepDefinition* = ref StepDefinitionObj
 
   StepDefinitionsObj* = object
@@ -64,8 +66,12 @@ type
     defArgs: NimNode
     setContext: NimNode
     blockParamName: NimNode
+    patExpr: NimNode
+    initColumns: NimNode
 
-proc processStepArguments(actual: NimNode, arglist: NimNode) : ArgumentNodes
+proc processStepArguments(
+  actual: NimNode, arglist: NimNode, pattern: string, stepDef: NimNode
+  ) : ArgumentNodes
 
 proc step(
     stepType: StepType, 
@@ -79,14 +85,17 @@ proc step(
     The macros ``Given``, ``When``, ``Then``, below, are wrappers
     around this procedure. Given a call:
     
-    Given r"this step contains a (-?\d+)", (
-        a: int, global.b: var int, quote.c: string, column.d: seq[int]):
+    Given r"this step contains a (-?\d+) and <e>", (
+        a: int, global.b: var int, quote.c: string, column.d: seq[int],
+        e: int):
       echo c
       b = a
     
     The resulting step definition would be:
     
-        let stepRE = re(r"this step contains a (-?\d+)")
+        let stepRE = re(
+          replace(r"this step contains a (-?\d+) and <e>", re("<e>"), 
+            parseTypeIntPattern))
         proc stepDefinition(stepArgs: StepArgs) : StepResult =
           let actual = stepArgs.stepText.match(stepRE).get.captures
           block:
@@ -94,6 +103,7 @@ proc step(
             let b : int = paramTypeIntGetter(ctGlobal, "b")
             let c : string = paramTypeSeqIntGetter(ctQuote, "c")
             let d : seq[int] = paramTypeSeqIntGetter(ctTable, "d")
+            let e : int = parseInt(actual[1])
             result = StepResult(args: stepArgs, value: srSuccess)
             try:
               echo c
@@ -105,33 +115,64 @@ proc step(
               result.exception = exc
     
         let stepDef = StepDefinition(
-          stepRE: stepRE, defn: stepDefinition, blockParamName: "c")
+          stepRE: stepRE, defn: stepDefinition, blockParamName: "c"
+          columns: newTable[string, ColumnSetter]())
+        stepDef.columns["d"] = proc(strVal: string): void = 
+          paramTypeSeqIntColumnSetter("d", strVal)
         stepDefinitions[stGiven].add(stepDef)
+
     
     Argument list syntax:
+    ---------------------
     
     Arguments are specified as a parenthesized list of ``name: type`` or
     ``location.name: type`` pairs. ``type`` refers to a parameter type (sic!
     *not* a nim type), which governs not only the (nim) type of the variable, 
     but also the regexp to recognize values in a gherkin step 
     specificiation, and functions to parse values and create initial values.
-    
+
     The ``location`` field, if present, marks arguments as coming from
     somewhere besides the step specification: context, block quote or
     table. 
+
+    For arguments from the step pattern order of arguments determines which 
+    regex capture group is used to parse the value from.
 
     There are three contexts: ``global``, ``feature`` and ``scenario`` whose 
     lifecycles are the lifetime of the runner, the current feature and
     the current scenario. Use contexts to pass information between
     steps and between hooks and steps.
     
-    When a location is present variables can also have the form `var type`. 
-    The var prefix means they are created as "var" parameters, and copied
-    back into context on successful completion of the step.
+    When a context location is present variables can also have the form `var
+    type`.  The var prefix means they are created as "var" parameters, and
+    copied back into context on successful completion of the step.
+
+    The ``quote`` location specifies the variable should contain the block
+    quote associated with the step. Currently ``quote`` must always have type
+    string.
+
+    A ``column`` location specifies that the variable should contain a column
+    from the table associated with the step. Table column should have a
+    sequence type (e.g. ``seq[int]``). The type of the sequence (``int`` in
+    the example) should be another parameter type -- it governs how elements
+    should be parsed from the table.
+
+    Named parameters
+    ----------------
+
+    If the step pattern contains placeholder -- that is, an identifier
+    enclosed in angle brackets, (as in ``<foo>``) and there is an argument
+    with that name (say  ``foo: int``), the default regex for that group (e.g.
+    for an integer, ``(-?\d+)`` is substituted for the angle-bracketed
+    identifier in the definition pattern. Note that the argument in the list
+    still must come in the correct order to match the corresponding parameter.
+
+    The scenario step may include a value for this identifier. Or the value
+    may be substituted from the examples table.
+
   ]##
 
   let stepRE = genSym(nskLet, "stepRE")
-  let nPattern = newLit(pattern)
   let stepDefinition = genSym(nskProc, "stepDefinition")
   let stepArgs = newIdentNode "stepArgs"
   let actual = genSym(nskLet, "actual")
@@ -142,11 +183,14 @@ proc step(
   let stepDef = genSym(nskLet, "stepDef")
   let sresult = newIdentNode "result"
   let exc = newIdentNode "exc"
-  let (defArgs, setContext, blockParamName) = processStepArguments(actual, argList)
+  let (
+      defArgs, setContext, blockParamName, 
+      patExpr, initColumns) = processStepArguments(
+    actual, argList, pattern, stepDef)
   let stepDefinitions = newBrkt("stepDefinitions", newIdentNode($stepType))
   let add = newIdentNode("add")
   result = quote do:
-    let `stepRE` = re(`nPattern`)
+    let `stepRE` = re(`patExpr`)
     proc `stepDefinition`(`stepArgs`: StepArgs) : StepResult =
       let `actual` = `stepArgs`.`stepText`.`match`(`stepRE`).`get`.`captures`
       block:
@@ -161,7 +205,10 @@ proc step(
           `sresult`.exception = `exc`
 
     let `stepDef` = StepDefinition(
-      stepRE: `stepRE`, defn: `stepDefinition`, blockParamName: `blockParamName`)
+      stepRE: `stepRE`, defn: `stepDefinition`, 
+      blockParamName: `blockParamName`,
+      columns: newTable[string, ColumnSetter]())
+    `initColumns`
     `stepDefinitions` .`add`(`stepDef`)
   #mShow(result)
 
@@ -186,14 +233,65 @@ proc unpackArg(argdef: NimNode) : ArgSpec =
     avar = true
     atype = $atypeN[0]
   else:
-    atype = $atypeN
+    atype = atypeN.toStrLit.strVal
   return (aname, atype, aloc, avar)
 
-proc processStepArguments(actual : NimNode, arglist: NimNode) : ArgumentNodes =
+##[ 
+
+  React to placeholders in step definition pattern.
+
+  The placeholder has a value in the step text. The default pattern for the
+  type is substituted in place of the identifier. As the type pattern
+  is not accessible, an expression to carry out the substitution is
+  constructed and passed back.
+
+2. aloc == ctTable:
+
+  The placeholder stands for a column of values from step table. The
+  pattern is left as step text also has the placeholder. Columns must
+  have a sequence type. The setter for the underlying type is placed in
+  "typePats" for the runner to use to fill in the context.
+
+]##
+
+proc subsPattern(
+    pattern: string, patExpr: var NimNode, aname: string, atype: string
+    ): void = 
+
+  let pname = "<$1>" % aname
+  if not (pname in pattern):
+    return
+  let npname = newLit(pname)
+  let typePat = newLit(ptName(atype, "pattern"))
+  let patStmt = quote do:
+    (`patExpr`).replace(re(`npname`), `typePat`)
+  patExpr = patStmt[0] # remove "stmtlist" wrapper
+
+##[
+  Creates a statement mapping parameter name to column setter
+  for column values.
+]##
+proc newColumnInit(aname: string, atype: string, stepDef: NimNode): NimNode =
+  let csetter = ptName(atype, "columnSetter")
+  let colTarget = newBrkt(newDot(stepDef, "columns"), aname.newLit)
+  let strVal = newIdentNode("strVal")
+  let csetStmt = newCall(csetter, aname.newLit, strVal)
+  let slist = quote do:
+    `colTarget` = proc(`strVal`: string): void =
+      `csetStmt`
+  result = slist[0]
+
+proc processStepArguments(
+    actual : NimNode, arglist: NimNode, pattern: string, stepDef: NimNode
+    ) : ArgumentNodes =
+
   var defArgs = newStmtList()
   var setContext = newStmtList()
   let blockParamName = newNilLit()
-  result = (defArgs, setContext, blockParamName)
+  var pattern = pattern.substr
+  var initColumns = newStmtList()
+  var patExpr = newLit(pattern)
+  result = (defArgs, setContext, blockParamName, patExpr, initColumns)
   var iactual = -1
   for argdef in arglist:
     let (aname, atype, aloc, avar) = unpackArg(argdef)
@@ -215,10 +313,15 @@ proc processStepArguments(actual : NimNode, arglist: NimNode) : ArgumentNodes =
           result.blockParamName = aname.newLit
         defArgs.add newLet(aname, cast[string](nil), newCall(
           ptName(atype, "Getter"), newIdentNode($aloc), newLit(aname)))
+        if aloc == ctTable:
+          initColumns.add(newColumnInit(aname, atype, stepDef))
     else:
       iactual += 1
+      subsPattern(pattern, patExpr, aname, atype)
       defArgs.add newLet(aname, cast[string](nil), newCall(
         ptName(atype, "parseFct"), newBrkt(actual, newLit(iactual))))
+    result.patExpr = patExpr
+    result.initColumns = initColumns
 
 macro Given*(
     pattern: static[string], arglist: untyped, body: untyped
@@ -232,9 +335,8 @@ macro When*(
 
 macro Then*(
     pattern: static[string], arglist: untyped, body: untyped
-    ) : untyped {.immediate.} =
+    ) : typed  =
   result = step(stThen, pattern, arglist, body)
-  #echo result.toStrLit.strVal
 
 when isMainModule:
   import typeinfo
@@ -246,8 +348,9 @@ when isMainModule:
   When r"((?:yes)|(?:no))", (global.foo: int, bar: bool):
    echo "hello: " & $(foo + 1) & " " & $bar
 
-  Then r"", (quote.b: string):
+  Then r"", (quote.b: string, column.d: seq[int]):
     echo "block: " & b
+    echo $d
 
   var args = StepArgs(stepText: "1")
 
@@ -262,5 +365,6 @@ when isMainModule:
   echo "result " & $r.value
   paramTypeStringSetter(ctQuote, "b", "hello")
   args.stepText = ""
+  stepDefinitions[stThen][0].columns["d"]("4")
   r = stepDefinitions[stThen][0].defn(args)
 

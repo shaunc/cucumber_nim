@@ -19,7 +19,7 @@ type
     description*: string
     tags*: seq[string]
     comments*: seq[string]
-    parent: Node
+    parent*: Node
 
   Scenario* = ref ScenarioObj
   Step* = ref StepObj
@@ -44,10 +44,15 @@ type
     text*: string
     blockParam*: string
     lineNumber*: int
+    table*: Examples
 
   ExamplesObj* = object of Node
     columns*: seq[string]
     values*: seq[seq[string]]
+
+  TableLine* = ref object
+    columns*: seq[string]
+    values*: seq[string]
 
   ## feature file contains bad syntax
   FeatureSyntaxError = object of ValueError

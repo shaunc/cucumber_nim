@@ -51,6 +51,9 @@ proc resetList*[T](contextList: var ContextList[T], clear: ContextType) :void =
   contextList[clear] = initTable[string, T]()
 
 proc ptName*(name: string, suffix: string) : string {.compiletime.} = 
+  var name = name
+  if name[0..3] == "seq[" and name[^1] == ']':
+    name = name[0..2] & capitalize(name[4..^2])
   ptPrefix & capitalize(name) & capitalize(suffix)
 proc cttName(name: string) : string {.compiletime.} =
   capitalize(name) & "Context"
@@ -77,7 +80,8 @@ macro declareContextList(name : static[string], ptype: untyped) : untyped =
 macro declareContextInst(name: static[string], ptype: untyped) : untyped =
   let cInit = newBrkt("newContext", ptype)
   let clistInit = quote do:
-    [`cInit`(), `cInit`(), `cInit`(), `cInit`(), `cInit`(), `cInit`(),]
+    [ `cInit`(), `cInit`(), `cInit`(), `cInit`(), 
+      `cInit`(), `cInit`(), ]
   result = newStmtList(newVar(
     ptName(name, "context"), cttName(name), clistInit, isExport = true))
 
@@ -95,19 +99,17 @@ macro declareContextGetter(
   let getterName = pubName(nil, ptName(name, "Getter"))
   let ctype = newIdentNode("ctype")
   let contextExpr = newBrkt(ptName(name, "Context"), "ctype")
-  let contextAcc = newBrkt("context", "varName")
+  let contextAcc = newBrkt(contextExpr, "varName")
   let nnot = newIdentNode("not")
   let varName = newIdentNode("varName")
-  let context = newIdentNode("context")
   var callNewFct: NimNode
   if newFct.kind == nnkNilLit:
     callNewFct = newFct
   else:
     callNewFct = newCall(newFct)
   result = quote do:
-    proc `getterName`(`ctype`: ContextType, `varName`: string) : `ptype` =
-      var `context` = `contextExpr`
-      if `nnot` (`varName` in `context`):
+    proc `getterName`(`ctype`: ContextType, `varName`: string) : var `ptype` =
+      if `nnot` (`varName` in `contextExpr`):
         `contextAcc` = `callNewFct`
       return `contextAcc`
 
@@ -123,6 +125,28 @@ macro declareContextSetter(name: static[string], ptype: untyped) : untyped =
         `ctype`: ContextType, `varName`: string, `val` : `ptype`): void =
       `contextExpr` = `val`
 
+macro declareContextColumnSetter( 
+    name: static[string], ptype: untyped ) : untyped =
+
+  let isSeqType = name[0..3] == "seq[" and name[^1] == ']'
+  if not isSeqType:
+    return newStmtList()
+
+  let subt = name[4..^2]
+  let setterName = pubName(nil, ptName(name, "ColumnSetter"))
+  let varName = newIdentNode("varName")
+  let strVal = newIdentNode("strVal")
+  let contextExpr = newCall(
+    ptName(name, "Getter"), newIdentNode("ctTable"), varName)
+  let parseFctName = ptName(subt, "parseFct")
+  let callParse = newCall(parseFctName, strVal)
+  let addStmt = newCall(newDot(contextExpr, "add"), callParse)
+  result = quote do:
+    proc `setterName`(
+        `varName`: string, `strVal`: string): void =
+      `addStmt`
+  #echo result.toStrLit.strVal
+
 template declarePT*(
     name: static[string],
     ptype: untyped,
@@ -136,6 +160,7 @@ template declarePT*(
 
     ``declarePT("int", int, parseInt, newInt, r"(-?\d+)")`` results in
     
+    ```
     const paramTypeIntName* = "int"
     const paramTypeIntTypeName* = "int"
     const paramTypeIntParseFct* = parseInt
@@ -144,19 +169,28 @@ template declarePT*(
     type
       IntContext* = ContextList[int]
     var paramTypeIntContext* : IntContext = [
-      newContext[int](), newContext[int](), newContext[int](), nil]
+      newContext[int](), newContext[int](), newContext[int](), 
+      newContext[int](), newContext[int](), nil]
     
     contextResetters.add proc(ctype: ContextType) : void = 
       resetList[int](paramTypeIntContext, ctype)
     
-    proc paramTypeIntGetter = proc(ctype: ContextType, varName: string) : int =
-      context = paramTypeIntContext[ctype]
-      if not varName in context:
-        context[varName] = newInt()
-      return context[varName]
+    proc paramTypeIntGetter = proc(ctype: ContextType, varName: string) : var int =
+      if not varName in paramTypeIntContext[ctype]:
+        paramTypeIntContext[ctype][varName] = newInt()
+      return paramTypeIntContext[ctype][varName]
     
     proc paramTypeIntSetter(ctype: ContextType, varName: string, val: int): void =
       paramTypeIntContext[ctype][varName] = val
+    ```
+
+    If a sequence type such as `seq[int]` is then defined, it will be
+    defined as above (mutatis mutandis), but with the addition of:
+
+    ```nim
+    proc paramTypeSeqIntColumnSetter(varName: string, strVal: string): void = 
+      paramTypeSeqIntContext(ctTable, varName).add(parseInt(strVal))
+    ```
   ]##
 
   mNewVarExport(ptName(name, "name"), string, name)
@@ -169,6 +203,7 @@ template declarePT*(
   declareContextReset(name, ptype)
   declareContextGetter(name, ptype, newFct)
   declareContextSetter(name, ptype)
+  declareContextColumnSetter(name, ptype)
 
 macro declareRefPT*(ptype: untyped) : untyped =
   ##[
@@ -202,4 +237,5 @@ proc newSeqB[T]() : seq[T] = newSeq[T]()
 declarePT("seq[int]", seq[int], nil, newSeqB[int], nil)
 declarePT("seq[string]", seq[string], nil, newSeqB[string], nil)
 declarePT("seq[bool]", seq[bool], nil, newSeqB[bool], nil)
+
 
