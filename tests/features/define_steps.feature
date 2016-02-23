@@ -8,7 +8,7 @@ Feature: Define steps implementations
 
 # convert to outline: vary over step type.
 
-Scenario: trival definition of <stepType>.
+Scenario Outline: trival definition of <stepType>.
   Given a <stepType> step definition:
   """
     <stepType> "a step definition:", ():
