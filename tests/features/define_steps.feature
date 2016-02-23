@@ -8,19 +8,25 @@ Feature: Define steps implementations
 
 # convert to outline: vary over step type.
 
-Scenario: trival definition:
-  Given a step definition:
+Scenario: trival definition of <stepType>.
+  Given a <stepType> step definition:
   """
-    Given "a step definition:", ():
+    <stepType> "a step definition:", ():
       discard
   """
-  Then I have 1 "given" definition
-  Then step "given" 0 has pattern "a step definition:"
-  Then step "given" 0 takes 0 arguments from step text.
-  Then step "given" 0 takes 0 arguments from context.
-  Then step "given" 0 takes 0 arguments from outline examples.
-  Then step "given" 0 expects no block.
-  Then running step "given" 0 succeeds.
+  Then I have 1 <stepType> definition
+  Then step <stepType> 0 has pattern "a step definition:"
+  Then step <stepType> 0 takes 0 arguments from step text.
+  Then step <stepType> 0 takes 0 arguments from context.
+  Then step <stepType> 0 takes 0 arguments from outline examples.
+  Then step <stepType> 0 expects no block.
+  Then running step <stepType> 0 succeeds.
+
+  Examples:
+    | stepType |
+    | Given |
+    | When |
+    | Then |
 
 # TODO: check wrapper generation fails if step has invalid body?
 
@@ -30,7 +36,7 @@ Scenario: exception causes failure.
   Given "a failing step definition", ():
     assert 0 == 1
   """
-  Then running step "given" 0 fails with error:
+  Then running step Given 0 fails with error:
   """
   false
   """
@@ -41,9 +47,9 @@ Scenario: reads argument from step text.
   Given r"a (\d+)", (a: int):
     assert a == 1
   """
-  Then step "given" 0 takes 1 arguments from step text.
-  Then running step "given" 0 succeeds with text "a 1"
-  Then running step "given" 0 fails with text "a 0"
+  Then step Given 0 takes 1 arguments from step text.
+  Then running step Given 0 succeeds with text "a 1"
+  Then running step Given 0 fails with text "a 0"
 
 # convert to outline: vary over context
 Scenario: reads argument from context.

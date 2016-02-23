@@ -77,7 +77,7 @@ proc basicReporter*(results: ScenarioResults, file: File): void =
 
   resetColor file:
     file.writeLine("")
-    for sresult in withExceptions:
+    for i, sresult in withExceptions:
       let resultValue = sresult.stepResult.value
       setResultColor(file, resultValue)
       file.writeLine(

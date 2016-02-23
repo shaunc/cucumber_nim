@@ -3,6 +3,7 @@
 import strutils
 import options
 import nre
+import sequtils
 import "./types"
 import "./feature"
 import "./step"
@@ -51,8 +52,6 @@ proc matchStepDefinition(
   raise newNoDefinitionForStep(
     step, "No definition matching \"" & step.text & "\"", save = false)
 
-proc runScenario(scenario: Scenario, exampleLine: TableLine = nil) : ScenarioResult
-
 iterator exampleLines(examples: seq[Examples]): TableLine =
   var columns = newSeq[string]()
   var bounds = newSeq[int]()
@@ -70,7 +69,7 @@ iterator exampleLines(examples: seq[Examples]): TableLine =
   var iex = high(examples)
   while iex >= 0:
     yield buildLine()
-    while iex >= 0 and indexes[iex] == bounds[iex]:
+    while iex >= 0 and indexes[iex] + 1 == bounds[iex]:
       iex -= 1
     if iex == -1:
       break
@@ -79,6 +78,36 @@ iterator exampleLines(examples: seq[Examples]): TableLine =
       iex += 1
       indexes[iex] = 0
 
+proc subsTableLine(text: string, line: TableLine): string =
+  if text != nil:
+    result = text.substr
+    for i, column in line.columns:
+      result = result.replace("<$1>" % column, line.values[i])
+
+iterator exampleScenarios(
+    scenario: Scenario) : Scenario =
+  for row in exampleLines(scenario.examples):
+    let description = subsTableLine(scenario.description, row)
+    let steps = scenario.steps.mapIt Step(
+      description: subsTableLine(it.description, row),
+      parent: scenario.parent,
+      tags: scenario.tags,
+      comments: scenario.comments,
+      stepType: it.stepType, 
+      text: subsTableLine(it.text, row),
+      blockParam: subsTableLine(it.blockParam, row),
+      lineNumber: it.lineNumber,
+      table: it.table)
+    yield Scenario(
+      description: description,
+      tags: scenario.tags,
+      comments: scenario.comments,
+      parent: scenario.parent,
+      steps: steps,
+      examples: newSeq[Examples]()
+      )
+
+proc runScenario(scenario: Scenario) : ScenarioResult
 proc runner*(features: seq[Feature]) : ScenarioResults =
   #echo "features " & $features.len
   result = @[]
@@ -89,20 +118,19 @@ proc runner*(features: seq[Feature]) : ScenarioResults =
       if scenario.examples.len == 0:
         result.add(runScenario(scenario))
       else:
-        for tline in exampleLines(scenario.examples):
-          result.add(runScenario(scenario, tline))
+        for escenario in exampleScenarios(scenario):
+          result.add(runScenario(escenario))
 
-proc runStep(step: Step, exampleLine: TableLine) : StepResult
-proc runScenario(
-    scenario: Scenario, exampleLine: TableLine = nil) : ScenarioResult =
+proc runStep(step: Step) : StepResult
+proc runScenario(scenario: Scenario) : ScenarioResult =
   resetContext(ctScenario)
   var sresult = StepResult(value: srSuccess)
   var badstep : Step
   try:
     for i, step in scenario.steps:
-      sresult = runStep(step, exampleLine)
+      badstep = step
+      sresult = runStep(step)
       if sresult.value != srSuccess:
-        badstep = step
         break
       else:
         badstep = nil
@@ -113,12 +141,10 @@ proc runScenario(
     stepResult: sresult, 
     feature: Feature(scenario.parent), scenario: scenario, step: badstep)
 
-proc fillExamples(sd: StepDefinition, exampleLine: TableLine): void
 proc fillTable(sd: StepDefinition, stepTable: Examples): void
-proc runStep(step: Step, exampleLine: TableLine) : StepResult =
+proc runStep(step: Step) : StepResult =
   #echo "step ", step.text
   let sd = matchStepDefinition(step, stepDefinitions[step.stepType])
-  fillExamples(sd, exampleLine)
   fillTable(sd, step.table)
   var args = StepArgs(stepText: step.text)
   if sd.blockParamName != nil:
@@ -126,11 +152,8 @@ proc runStep(step: Step, exampleLine: TableLine) : StepResult =
   result = sd.defn(args)
 
 #TODO
-proc fillExamples(sd: StepDefinition, exampleLine: TableLine): void = 
-  discard
 proc fillTable(sd: StepDefinition, stepTable: Examples): void =
   discard
-
 
 when isMainModule:
 

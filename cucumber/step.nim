@@ -262,7 +262,7 @@ proc subsPattern(
   if not (pname in pattern):
     return
   let npname = newLit(pname)
-  let typePat = newLit(ptName(atype, "pattern"))
+  let typePat = newIdentNode(ptName(atype, "pattern"))
   let patStmt = quote do:
     (`patExpr`).replace(re(`npname`), `typePat`)
   patExpr = patStmt[0] # remove "stmtlist" wrapper
@@ -351,6 +351,9 @@ when isMainModule:
   Then r"", (quote.b: string, column.d: seq[int]):
     echo "block: " & b
     echo $d
+
+  Given r"<foo>", (foo: int):
+    echo "FOO" & $foo
 
   var args = StepArgs(stepText: "1")
 
