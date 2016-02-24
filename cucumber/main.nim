@@ -22,10 +22,11 @@ template withDir*(newDir: string, body: typed) : typed =
 
 {.push hint[XDeclaredButNotUsed]: off.}
 
-proc main*(options: varargs[string]): void =
+proc main*(options: varargs[string]): int =
   var appName = getAppFilename()
   commandline:
     arguments paths, string, false
+    option verbosity, int, "verbosity", "v", 0
 
     exitoption "help", "h", 
       "\n" & """Usage: $1 [path [path ...] ]
@@ -50,8 +51,8 @@ proc main*(options: varargs[string]): void =
     echo exc.getStackTrace()
     echo "\n"
 
-  var results = runner(features)
-  basicReporter(results, stdout)
+  var results = runner(features, verbosity)
+  result = basicReporter(results, stdout, verbosity)
 
 {.pop.}
 

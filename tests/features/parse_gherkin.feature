@@ -6,24 +6,22 @@ Feature: Parse gherkin
   I want a tool that interprets ".feature" files written in gherkin
 
 Scenario: trivial feature.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
   """
-  When I read the feature file
   Then the feature description is "parse gherkin"
   And the feature explanation is ""
   And the feature contains 0 scenarios
   And the feature has no background block
 
 Scenario: a feature may be preceeded by blank lines.
-  Given a feature file:
+  When I read the feature file:
   """
 
 
   Feature: parse gherkin
   """
-  When I read the feature file
   Then the feature description is "parse gherkin"
   And the feature explanation is ""
   And the feature contains 0 scenarios
@@ -65,29 +63,27 @@ Scenario: feature file may not contain two features.
   """
 
 Scenario: A feature may have an explanation.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
     Because I want to
   """
-  When I read the feature file
   Then the feature explanation is "Because I want to"
   And the feature contains 0 scenarios
   And the feature has no background block
 
 Scenario: A feature may have a scenario.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
   Scenario: trivial scenario
   """
-  When I read the feature file
   Then the feature contains 1 scenarios
   And scenario 0 contains 0 steps
 
 Scenario: A feature may have multiple scenarios.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -97,21 +93,19 @@ Scenario: A feature may have multiple scenarios.
 
   Scenario: a third trivial scenario
   """
-  When I read the feature file
   Then the feature contains 3 scenarios
   And scenario 0 contains 0 steps
   And scenario 1 contains 0 steps
   And scenario 2 contains 0 steps
 
 Scenario: scenario may contain a step.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
   Scenario: trivial scenario
     Given nothing
   """
-  When I read the feature file
   Then scenario 0 contains 1 steps
   And step 0 of scenario 0 is of type "Given"
   And step 0 of scenario 0 has text "nothing"
@@ -133,7 +127,7 @@ Scenario: error unknown step type.
   """
 
 Scenario: scenario may contain multiple steps.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -142,14 +136,13 @@ Scenario: scenario may contain multiple steps.
     When nothing
     Then nothing
   """
-  When I read the feature file
   Then scenario 0 contains 3 steps
   And step 0 of scenario 0 is of type "Given"
   And step 1 of scenario 0 is of type "When"
   And step 2 of scenario 0 is of type "Then"
 
 Scenario: subsequent steps starting with "And" have type of step before.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -161,7 +154,6 @@ Scenario: subsequent steps starting with "And" have type of step before.
     Then nothing
     And nothing else
   """
-  When I read the feature file
   Then scenario 0 contains 6 steps
   And step 0 of scenario 0 is of type "Given"
   And step 1 of scenario 0 is of type "Given"
@@ -186,7 +178,7 @@ Scenario: A scenario's first step may not start with "And".
   """
 
 Scenario: A step may include a block parameter.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -196,20 +188,18 @@ Scenario: A step may include a block parameter.
     The block
     """
   """
-  When I read the feature file
   Then step 0 of scenario 0 has block parameter:
   """
   The block
   """
 
 Scenario: The feature may contain background
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
   Background: trivial background
   """
-  When I read the feature file
   Then the feature has a background block
   And the background contains 0 steps
 
@@ -230,32 +220,30 @@ Scenario: The feature may not contain more than one background section
   """
 
 Scenario: background may contain a step.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
   Background: trivial background
     Given nothing
   """
-  When I read the feature file
   Then the background contains 1 steps
   And step 0 of the background is of type "Given"
   And step 0 of the background has text "nothing"
   And step 0 of the background has no block parameter
 
 Scenario: A feature may include a scenario outline.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
   Scenario Outline: trivial scenario outline
   """
-  When I read the feature file
   Then the feature contains 1 scenarios
   And scenario 0 contains 0 steps
 
 Scenario: A scenario outline may include an example section.
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -267,14 +255,13 @@ Scenario: A scenario outline may include an example section.
       | 1      |
       | 2      |
   """
-  When I read the feature file
   Then the feature contains 1 scenarios
   And scenario 0 contains 1 example
   And example 0 of scenario 0 has 1 column
   And column 0 of example 0, scenario 0 is named "nsheep"
 
 Scenario: A scenario outline may include multiple examples sections
-  Given a feature file:
+  When I read the feature file:
   """
   Feature: parse gherkin
 
@@ -290,7 +277,6 @@ Scenario: A scenario outline may include multiple examples sections
       | 3     | 
       | 8     |
   """
-  When I read the feature file
   Then scenario 0 contains 2 examples
 
 Scenario: Examples must have as many cells in each row as columns.

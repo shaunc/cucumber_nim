@@ -15,7 +15,7 @@ import "./types"
 
 type
   Node* = ref NodeObj
-  NodeObj* = object of RootObj
+  NodeObj* {.shallow.} = object of RootObj
     description*: string
     tags*: seq[string]
     comments*: seq[string]
@@ -25,7 +25,7 @@ type
   Step* = ref StepObj
   Examples* = ref ExamplesObj
 
-  Feature* = ref object of NodeObj
+  Feature* {.shallow.} = ref object of NodeObj
     ## Contents of a gherkin (`.feature`) file.
 
     name*: string
@@ -35,24 +35,24 @@ type
 
   Features* = seq[Feature]
 
-  ScenarioObj* = object of Node
+  ScenarioObj* {.shallow.} = object of Node
     ## a senario or scenario outline of a feature
 
     steps*: seq[Step]
     examples*: seq[Examples]
 
-  StepObj* = object of Node
+  StepObj* {.shallow.} = object of Node
     stepType*: StepType
     text*: string
     blockParam*: string
     lineNumber*: int
     table*: Examples
 
-  ExamplesObj* = object of Node
+  ExamplesObj* {.shallow.} = object of Node
     columns*: seq[string]
     values*: seq[seq[string]]
 
-  TableLine* = ref object
+  TableLine* {.shallow.} = ref object
     columns*: seq[string]
     values*: seq[string]
 

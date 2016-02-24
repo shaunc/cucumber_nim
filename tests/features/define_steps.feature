@@ -112,7 +112,6 @@ Scenario: reads argument from block quote (<succeedsOrFails>)
   | fails           | bar   |
 
 
-
 # TODO
 # err: no var quote args
 # block -- can be type convertable from string

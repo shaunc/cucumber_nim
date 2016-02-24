@@ -11,10 +11,11 @@ when isMainModule:
   import "./step"
 
 type
-  ReporterProc* = proc(results: ResultsIter, file: File): void
+  ReporterProc* = proc(results: ResultsIter, file: File, verbosity: int): int
   Reporter* = object
     name: string
     rpt: ReporterProc
+  ResultSummary = array[StepResultValue, int]
 
 var reporters* : Table[string, Reporter] = initTable[string, Reporter]()
 
@@ -54,7 +55,10 @@ template resetColor(file: File, body: untyped) : untyped =
     if isatty(file):
       setForegroundColor(file, fgBlack)
 
-proc basicReporter*(results: ResultsIter, file: File): void =
+proc newResultSummary(): ResultSummary = [0, 0, 0, 0]
+
+proc basicReporter*(results: ResultsIter, file: File, verbosity: int = 0): int =
+  var summary = newResultSummary()  
   if isatty(file):
     system.addQuitProc(resetAttributes)
   var lastFeature : string = nil
@@ -63,33 +67,44 @@ proc basicReporter*(results: ResultsIter, file: File): void =
     for i, sresult in results():
       if lastFeature != sresult.feature.description:
         lastFeature = sresult.feature.description
-        setColor(file, fgBlack)
         if i > 0:
           file.writeLine("\n")
         file.writeLine("$1:\n" % lastFeature)
       let resultValue = sresult.stepResult.value
-      setResultColor(file, resultValue)
-      file.writeLine("  $1 $2" % [
-        resultChar[resultValue], sresult.scenario.description])
+      summary[resultValue] += 1;
+      if resultValue != srSuccess or verbosity >= 0:
+        setResultColor(file, resultValue)
+        file.writeLine("  $1 $2" % [
+          resultChar[resultValue], sresult.scenario.description])
       if sresult.stepResult.exception != nil:
         withExceptions.add(sresult)
+      setColor(file, fgBlack)
 
-  resetColor file:
-    file.writeLine("")
-    for i, sresult in withExceptions:
-      let resultValue = sresult.stepResult.value
-      setResultColor(file, resultValue)
-      file.writeLine(
-        "$1: $2" % [sresult.scenario.description, resultDesc[resultValue]])
-      file.writeLine("    Step: $1" % sresult.step.description)
-      if sresult.stepResult.exception != nil:
-        if isatty(file):
-          setForegroundColor(file, fgRed)
-        let exc = sresult.stepResult.exception
-        if not (exc of NoDefinitionForStep) or ((ref NoDefinitionForStep)exc).save:
-          file.writeLine("\nDetail: " & sresult.stepResult.exception.msg)
-          file.writeLine(sresult.stepResult.exception.getStackTrace())
+  if verbosity >= -1:
+    resetColor file:
       file.writeLine("")
+      for i, sresult in withExceptions:
+        let resultValue = sresult.stepResult.value
+        setResultColor(file, resultValue)
+        file.writeLine(
+          "$1: $2" % [sresult.scenario.description, resultDesc[resultValue]])
+        file.writeLine("    Step: $1" % sresult.step.description)
+        if sresult.stepResult.exception != nil:
+          if isatty(file):
+            setForegroundColor(file, fgRed)
+          let exc = sresult.stepResult.exception
+          if not (exc of NoDefinitionForStep) or ((ref NoDefinitionForStep)exc).save:
+            file.writeLine("\nDetail: " & sresult.stepResult.exception.msg)
+            file.writeLine(sresult.stepResult.exception.getStackTrace())
+        file.writeLine("")
+
+  if verbosity >= -2:
+    for sresult in [srSuccess, srFail, srNoDefinition, srSkip]:
+      let rname = ($sresult)[2..^1]
+      file.write("$1: $2 " % [rname, $summary[sresult]])
+    file.writeLine("")
+
+  result = summary[srFail] + summary[srNoDefinition]
 
 registerReporter("basic", basicReporter)
 

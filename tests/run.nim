@@ -4,7 +4,10 @@
 import "../cucumber"
 import "./steps/featureSteps"
 import "./steps/stepDefinitionSteps"
+import "./steps/runnerSteps"
 
 when isMainModule:
   withDir("./tests"):
-    main()
+    let nfail = main()
+    if nfail > 0:
+      quit(nfail)
