@@ -199,7 +199,7 @@ proc readPreamble(feature: Feature, stream: var LineStream): void =
     of ltComment:
       feature.comments.add line.content
     of ltTags:
-      feature.tags.add line.content
+      feature.tags.add line.content.split()
     of ltHead:
       stream.pushback line
       break
@@ -222,7 +222,7 @@ proc readHead(feature: Feature, stream: var LineStream): void =
       break
     of ltComment:
       feature.comments.add line.content
-    of ltHead:
+    of ltHead, ltTags:
       stream.pushback line
       break
     of ltBody:
@@ -236,11 +236,14 @@ proc readHead(feature: Feature, stream: var LineStream): void =
 
 proc readBody(feature: Feature, stream: var LineStream): void =
   var comments : seq[string] = @[]
+  var tags: seq[string] = @[]
   while true:
     let line = stream.nextLine
     case line.ltype
     of ltComment:
       comments.add line.content
+    of ltTags:
+      tags.add line.content.split
     of ltEOF: 
       break
     of ltHead:
@@ -254,7 +257,9 @@ proc readBody(feature: Feature, stream: var LineStream): void =
       else:
         let scenario = feature.readScenario(stream, line)
         scenario.comments = comments & scenario.comments
+        scenario.tags = tags
         comments = @[]
+        tags = @[]
     else:
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
   feature.comments.add comments

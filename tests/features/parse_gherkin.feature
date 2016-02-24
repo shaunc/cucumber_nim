@@ -299,7 +299,80 @@ Scenario: Examples must have as many cells in each row as columns.
   >  | 1      | foo |
   """
 
-# tables in steps
+Scenario: A feature may have a tag.
+  When I read the feature file:
+  """
+  @tag1
+  Feature: parse gherkin
+  """
+  Then the feature has tag "@tag1"
+
+Scenario: A feature may have multiple tag.
+  When I read the feature file:
+  """
+  @tag1 @tag2 @tag3
+  Feature: parse gherkin
+  """
+  Then the feature has tags "@tag1 @tag2 @tag3"
+
+Scenario: A feature may have tags specified on mulitple lines
+  When I read the feature file:
+  """
+  @tag1
+  @tag2
+  Feature: parse gherkin
+  """
+  Then the feature has tag "@tag1 @tag2"
+
+Scenario: A scenario may have a tag.
+  When I read the feature file:
+  """
+  Feature: parse gherkin
+
+  @tag1
+  Scenario: somesuch
+  """
+  Then scenario 0 has tag "@tag1"
+
+Scenario: A scenario may have multiple tag.
+  When I read the feature file:
+  """
+  Feature: parse gherkin
+
+  @tag1 @tag2 @tag3
+  Scenario: somesuch
+  """
+  Then scenario 0 has tags "@tag1 @tag2 @tag3"
+
+Scenario: A scenario may have tags specified on mulitple lines
+  When I read the feature file:
+  """
+  Feature: parse gherkin
+  
+  @tag1
+  @tag2
+  Scenario: somesuch
+  """
+  Then scenario 0 has tags "@tag1 @tag2"
+
+Scenario: Feature and scenarios may all have multiple tags
+  When I read the feature file:
+  """
+  @tag1
+  @tag2
+  Feature: parse gherkin
+
+  @tag1 @tag2 @tag3
+  Scenario: somesuch
+
+  @tag4
+  @tag5
+  Scenario: other
+  """
+  Then the feature has tag "@tag1 @tag2"
+  Then scenario 0 has tags "@tag1 @tag2 @tag3"
+  Then scenario 1 has tags "@tag4 @tag5"
+
 # A feature may have a tag
 # A feature may have multple tags
 # A feature may have tags specified on multiple lines
@@ -313,4 +386,5 @@ Scenario: Examples must have as many cells in each row as columns.
 # comment start character in scenario heading is part of heading
 # comment start character in steps is part of the step
 
+# tables in steps
 
