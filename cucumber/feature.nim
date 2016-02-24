@@ -33,6 +33,8 @@ type
     background*: Scenario
     scenarios*: seq[Scenario]
 
+  Features* = seq[Feature]
+
   ScenarioObj* = object of Node
     ## a senario or scenario outline of a feature
 

@@ -49,6 +49,7 @@ proc main*(options: varargs[string]): void =
     echo "Detail: ", exc.msg
     echo exc.getStackTrace()
     echo "\n"
+
   var results = runner(features)
   basicReporter(results, stdout)
 

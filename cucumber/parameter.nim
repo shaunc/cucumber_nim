@@ -220,9 +220,13 @@ export strutils.parseInt
 proc newInt() : int = 0
 declarePT("int", int, strutils.parseInt, newInt, r"(-?\d+)")
 
-proc parseBool*(s: string) : bool = strutils.parseBool(s)
+proc parseBool*(s: string) : bool = 
+  case s
+    of "a", "an": true
+    else: strutils.parseBool(s)
+
 proc newBool() : bool = false
-const boolPattern = r"((?:true)|(?:false)|(:yes)|(:no))";
+const boolPattern = r"((?:true)|(?:false)|(?:yes)|(?:no)|(?:a)|(?:an))";
 declarePT("bool", bool, parseBool, newBool, boolPattern)
 
 proc newStringA(): string = ""

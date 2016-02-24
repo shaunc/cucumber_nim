@@ -6,17 +6,16 @@ import terminal
 import strutils
 import "./types"
 import "./runner"
+import "./feature"
 when isMainModule:
-  import "./feature"
   import "./step"
 
 type
-  ReporterProc* = proc(results: ScenarioResults, file: File): void
+  ReporterProc* = proc(results: ResultsIter, file: File): void
   Reporter* = object
     name: string
     rpt: ReporterProc
 
-#static:
 var reporters* : Table[string, Reporter] = initTable[string, Reporter]()
 
 proc registerReporter*(name : string, rpt: ReporterProc) : void =
@@ -55,13 +54,13 @@ template resetColor(file: File, body: untyped) : untyped =
     if isatty(file):
       setForegroundColor(file, fgBlack)
 
-proc basicReporter*(results: ScenarioResults, file: File): void =
+proc basicReporter*(results: ResultsIter, file: File): void =
   if isatty(file):
     system.addQuitProc(resetAttributes)
   var lastFeature : string = nil
-  var withExceptions : ScenarioResults = @[]
+  var withExceptions = newSeq[ScenarioResult]()
   resetColor file:
-    for i, sresult in results:
+    for i, sresult in results():
       if lastFeature != sresult.feature.description:
         lastFeature = sresult.feature.description
         setColor(file, fgBlack)

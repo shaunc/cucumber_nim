@@ -18,7 +18,6 @@ Scenario Outline: trival definition of <stepType>.
   Then step <stepType> 0 has pattern "a step definition:"
   Then step <stepType> 0 takes 0 arguments from step text.
   Then step <stepType> 0 takes 0 arguments from context.
-  Then step <stepType> 0 takes 0 arguments from outline examples.
   Then step <stepType> 0 expects no block.
   Then running step <stepType> 0 succeeds.
 
@@ -63,6 +62,7 @@ Scenario: reads argument <value> from <context> context.
   Given "a step definition:", (<context>.a: int):
     assert a == 1
   """
+  Then step Given 0 takes 1 arguments from context.
   When <context> context parameter a is <value>
   Then running step Given 0 <succeedsOrFails>.
 
@@ -97,14 +97,23 @@ Scenario: writes argument <value> to <context> context.
   | 0     |
   | 1     |
 
+Scenario: reads argument from block quote (<succeedsOrFails>)
+  Given a step definition:
+  """
+  Given "a step definition:", (quote.a: string):
+    assert a.strip == "foo"
+  """
+  Then step Given 0 expects a block.
+  Then step Given 0 <succeedsOrFails> with block <block>.
 
-# context args
-# var context arg
+  Examples:
+  | succeedsOrFails | block |
+  | succeeds        | foo   |
+  | fails           | bar   |
 
-# outline args
-# err: no var outline args
 
-# block quote args
+
+# TODO
 # err: no var quote args
 # block -- can be type convertable from string
 

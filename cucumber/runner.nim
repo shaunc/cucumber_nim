@@ -26,7 +26,8 @@ type
     scenario*: Scenario
     step*: Step
 
-  ScenarioResults* = seq[ScenarioResult]
+  OrdResult* = tuple[iscenario: int, sresult: ScenarioResult]
+  ResultsIter* = iterator(): OrdResult {.closure.}
 
 proc newNoDefinitionForStep(
     step: Step, msg: string, save: bool = true) : ref NoDefinitionForStep =
@@ -61,14 +62,12 @@ iterator exampleLines(examples: seq[Examples]): TableLine =
     bounds.add(example.values.len)
     indexes.add(0)
 
-  proc buildLine(): TableLine = 
-    result = TableLine(columns: columns, values: newSeq[string]())
-    for iex, icol in indexes:
-      result.values.add(examples[iex].values[icol])
-
   var iex = high(examples)
   while iex >= 0:
-    yield buildLine()
+    let line = TableLine(columns: columns, values: newSeq[string]())
+    for iex, icol in indexes:
+      line.values.add(examples[iex].values[icol])
+    yield line
     while iex >= 0 and indexes[iex] + 1 == bounds[iex]:
       iex -= 1
     if iex == -1:
@@ -108,18 +107,22 @@ iterator exampleScenarios(
       )
 
 proc runScenario(scenario: Scenario) : ScenarioResult
-proc runner*(features: seq[Feature]) : ScenarioResults =
+proc runner*(features: Features) : ResultsIter =
   #echo "features " & $features.len
-  result = @[]
-  for feature in features:
-    #echo "feature scenarios " & $feature.scenarios.len
-    resetContext(ctFeature)
-    for scenario in feature.scenarios:
-      if scenario.examples.len == 0:
-        result.add(runScenario(scenario))
-      else:
-        for escenario in exampleScenarios(scenario):
-          result.add(runScenario(escenario))
+  iterator iresults() : OrdResult {.closure.} =
+    var i = 0;
+    for feature in features:
+      #echo "feature scenarios " & $feature.scenarios.len
+      resetContext(ctFeature)
+      for scenario in feature.scenarios:
+        if scenario.examples.len == 0:
+          yield (i, runScenario(scenario))
+          i += 1
+        else:
+          for escenario in exampleScenarios(scenario):
+            yield (i, runScenario(escenario))
+            i += 1
+  return iresults
 
 proc runStep(step: Step) : StepResult
 proc runScenario(scenario: Scenario) : ScenarioResult =
