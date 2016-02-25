@@ -14,7 +14,7 @@ Scenario Outline: trival definition of <stepType>.
     <stepType> "a step definition:", ():
       discard
   """
-  Then I have 1 <stepType> definition
+  Then I have 1 <stepType> step definition
   Then step <stepType> 0 has pattern "a step definition:"
   Then step <stepType> 0 takes 0 arguments from step text.
   Then step <stepType> 0 takes 0 arguments from context.

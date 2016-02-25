@@ -56,9 +56,6 @@ type
     columns*: seq[string]
     values*: seq[string]
 
-  ## feature file contains bad syntax
-  FeatureSyntaxError = object of ValueError
-
   # Internals for reading features
 
   LineType = enum

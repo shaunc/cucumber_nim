@@ -17,6 +17,7 @@ proc newDef*(
     name: string, dtype: string, isVar: bool = false) : NimNode {.compiletime.} =
   var nType = toTypeNode(dtype, isVar)
   result = newIdentDefs(newIdentNode(name), nType)
+  
 proc newBrkt*(name: string, idx: string) : NimNode {.compiletime.} = 
   result = newTree(nnkBracketExpr, newIdentNode(name), newIdentNode(idx))
 proc newBrkt*(name: string, idx: NimNode) : NimNode {.compiletime.} = 
@@ -170,4 +171,5 @@ macro toCode*(n: NimNode) : untyped = n
 
 macro nameOfNim*(n: untyped) : untyped = 
   newLit($n)
+
 

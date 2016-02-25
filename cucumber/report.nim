@@ -11,7 +11,7 @@ when isMainModule:
   import "./step"
 
 type
-  ReporterProc* = proc(results: ResultsIter, file: File, verbosity: int): int
+  ReporterProc* = proc(results: ResultsIter, file: File, options: CucumberOptions): int
   Reporter* = object
     name: string
     rpt: ReporterProc
@@ -57,7 +57,7 @@ template resetColor(file: File, body: untyped) : untyped =
 
 proc newResultSummary(): ResultSummary = [0, 0, 0, 0]
 
-proc basicReporter*(results: ResultsIter, file: File, verbosity: int = 0): int =
+proc basicReporter*(results: ResultsIter, file: File, options: CucumberOptions): int =
   var summary = newResultSummary()  
   if isatty(file):
     system.addQuitProc(resetAttributes)
@@ -72,15 +72,17 @@ proc basicReporter*(results: ResultsIter, file: File, verbosity: int = 0): int =
         file.writeLine("$1:\n" % lastFeature)
       let resultValue = sresult.stepResult.value
       summary[resultValue] += 1;
-      if resultValue != srSuccess or verbosity >= 0:
+      if resultValue != srSuccess or options.verbosity >= 0:
         setResultColor(file, resultValue)
         file.writeLine("  $1 $2" % [
           resultChar[resultValue], sresult.scenario.description])
       if sresult.stepResult.exception != nil:
         withExceptions.add(sresult)
       setColor(file, fgBlack)
+      if options.bail and resultValue != srSuccess and resultValue != srSkip:
+        break
 
-  if verbosity >= -1:
+  if options.verbosity >= -1:
     resetColor file:
       file.writeLine("")
       for i, sresult in withExceptions:
@@ -98,7 +100,7 @@ proc basicReporter*(results: ResultsIter, file: File, verbosity: int = 0): int =
             file.writeLine(sresult.stepResult.exception.getStackTrace())
         file.writeLine("")
 
-  if verbosity >= -2:
+  if options.verbosity >= -2:
     for sresult in [srSuccess, srFail, srNoDefinition, srSkip]:
       let rname = ($sresult)[2..^1]
       file.write("$1: $2 " % [rname, $summary[sresult]])

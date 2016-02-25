@@ -29,4 +29,28 @@ type
     ctTable,
     ctQuote,
     ctNotContext
+    
+  HookType* = enum
+    htBeforeAll
+    htAfterAll
+    htBeforeFeature
+    htAfterFeature
+    htBeforeScenario
+    htAfterScenario
+    htBeforeStep
+    htAfterStep
 
+  SyntaxError* = object of ValueError
+
+  ## feature file contains bad syntax
+  FeatureSyntaxError* = object of SyntaxError
+
+  ## step definition malformed
+  StepDefinitionError* = object of SyntaxError
+
+  ## hook definition malformed
+  HookDefinitionError* = object of SyntaxError
+
+  CucumberOptions* = ref object
+    verbosity*: int
+    bail*: bool

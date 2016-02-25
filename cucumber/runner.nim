@@ -38,7 +38,7 @@ proc newNoDefinitionForStep(
 
 proc matchStepDefinition(
     step : Step, stepDefinitions : seq[StepDefinition],
-    verbosity: int) : StepDefinition =
+    options: CucumbEroptions) : StepDefinition =
   for defn in stepDefinitions:
     var isMatch = step.text.match(defn.stepRE)
     #echo step.text, defn.stepRE.pattern, isMatch.isSome
@@ -51,7 +51,7 @@ proc matchStepDefinition(
           step, "Step definition does not take block parameter.")
       return defn
 
-  if verbosity > 0:
+  if options.verbosity > 0:
     echo "No definition matching \"" & step.text & "\""
   raise newNoDefinitionForStep(
     step, "No definition matching \"" & step.text & "\"", save = false)
@@ -109,30 +109,30 @@ iterator exampleScenarios(
       examples: newSeq[Examples]()
       )
 
-proc runScenario(scenario: Scenario, verbosity: int) : ScenarioResult
-proc runner*(features: Features, verbosity: int = 0) : ResultsIter =
-  if verbosity > 0:
+proc runScenario(scenario: Scenario, options: CucumbEroptions) : ScenarioResult
+proc runner*(features: Features, options: CucumbEroptions) : ResultsIter =
+  if options.verbosity > 0:
     echo "features: " & $features.len
   iterator iresults() : OrdResult {.closure.} =
     var i = 0;
     for feature in features:
-      if verbosity > 0:
+      if options.verbosity > 0:
         echo "feature \"$1\" scenarios $2" % [
           feature.description, $feature.scenarios.len ]
       resetContext(ctFeature)
       for scenario in feature.scenarios:
         if scenario.examples.len == 0:
-          yield (i, runScenario(scenario, verbosity))
+          yield (i, runScenario(scenario, options))
           i += 1
         else:
           for escenario in exampleScenarios(scenario):
-            yield (i, runScenario(escenario, verbosity))
+            yield (i, runScenario(escenario, options))
             i += 1
   return iresults
 
-proc runStep(step: Step, verbosity: int) : StepResult
-proc runScenario(scenario: Scenario, verbosity: int) : ScenarioResult =
-  if verbosity > 1:
+proc runStep(step: Step, options: CucumbEroptions) : StepResult
+proc runScenario(scenario: Scenario, options: CucumbEroptions) : ScenarioResult =
+  if options.verbosity > 1:
     echo "  scenario \"$1\"" % scenario.description
   resetContext(ctScenario)
   var sresult = StepResult(value: srSuccess)
@@ -140,24 +140,25 @@ proc runScenario(scenario: Scenario, verbosity: int) : ScenarioResult =
   try:
     for i, step in scenario.steps:
       badstep = step
-      sresult = runStep(step, verbosity)
+      sresult = runStep(step, options)
       if sresult.value != srSuccess:
         break
       else:
         badstep = nil
-  except NoDefinitionForStep:
+  except:
     var exc = getCurrentException()
-    sresult = StepResult(value: srNoDefinition, exception: exc)
+    let value = if exc of NoDefinitionForStep: srNoDefinition else: srFail
+    sresult = StepResult(value: value, exception: exc)
   let feature = Feature(scenario.parent)
   result = ScenarioResult(
     stepResult: sresult, 
     feature: feature, scenario: scenario, step: badstep)
 
 proc fillTable(sd: StepDefinition, stepTable: Examples): void
-proc runStep(step: Step, verbosity: int) : StepResult =
-  if verbosity > 2:
+proc runStep(step: Step, options: CucumbEroptions) : StepResult =
+  if options.verbosity > 2:
     echo "    step ", step.text
-  let sd = matchStepDefinition(step, stepDefinitions[step.stepType], verbosity)
+  let sd = matchStepDefinition(step, stepDefinitions[step.stepType], options)
   fillTable(sd, step.table)
   var args = StepArgs(stepText: step.text)
   if sd.blockParamName != nil:

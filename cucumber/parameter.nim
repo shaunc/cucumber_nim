@@ -1,32 +1,35 @@
 # cucumber/parameter.nim
 #
-## Defines types of parameters to pass values to steps
-## from scenario definitions and context initialized by hooks.
-##
-## Parameters from scenario definitions start as strings; from
-## context, they start as typed values. 
-##
-## Parameter type objects have names of functions to use for
-## parsing and unpacking. These are used at compile time by step
-## and hook macros. Because of this, new parameter types must be 
-## added before step and hook definitions are processed.
-## 
-## There are three types of context: global, feature and scenario,
-## segregated according to their lifecycle.
-## 
-## Each parameter type has a sequence for each context type. When
-## a context is initialized, all parameters of a given type used
-## in steps or hooks are mapped to elements in this sequence.
-## 
-## When a type is created, it creates its contexts, and registers
-## functions to reset a context, and to add elements to that context.
-## The former are stored in ``contextResetters``. The latter in
-## ``contextAllocators``, which is indexed by parameter type name.
-## 
+##[ 
+
+  Defines types of parameters to pass values to steps
+  from scenario definitions and context initialized by hooks.
+
+  Parameters from scenario definitions start as strings; from
+  context, they start as typed values. 
+
+  Parameter type objects have names of functions to use for
+  parsing and unpacking. These are used at compile time by step
+  and hook macros. Because of this, new parameter types must be 
+  added before step and hook definitions are processed.
+
+  There are three types of context: global, feature and scenario,
+  segregated according to their lifecycle.
+
+  Each parameter type has a sequence for each context type. When
+  a context is initialized, all parameters of a given type used
+  in steps or hooks are mapped to elements in this sequence.
+
+  When a type is created, it creates its contexts, and registers
+  functions to reset a context, and to add elements to that context.
+  The former are stored in ``contextResetters``. The latter in
+  ``contextAllocators``, which is indexed by parameter type name.
+
+]## 
 
 import tables
 import macros
-from strutils import capitalize, parseInt
+from strutils import capitalize, parseInt, toLower
 import macroutil
 import "./types"
 
@@ -34,6 +37,16 @@ type
   Context*[T] = Table[string, T]
   ContextList*[T] = array[ContextType, Context[T]]
   ResetContext* = proc(ctype: ContextType) : void
+
+proc contextTypeFor*(cname: string) : ContextType =
+  case cname.substr().toLower
+  of "global": result = ctGlobal
+  of "feature": result = ctFeature
+  of "scenario": result = ctScenario
+  of "quote": result = ctQuote
+  of "column": result = ctTable
+  else:
+    raise newException(Exception, "unknown context " & cname)
 
 const ptPrefix = "paramType"
 var contextResetters* : seq[ResetContext] = @[]

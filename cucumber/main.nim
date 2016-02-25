@@ -6,6 +6,7 @@ import strutils
 import commandeer 
 
 import tables
+import "./types"
 import "./feature"
 import "./loader"
 import "./runner"
@@ -27,6 +28,7 @@ proc main*(options: varargs[string]): int =
   commandline:
     arguments paths, string, false
     option verbosity, int, "verbosity", "v", 0
+    option bail, bool, "bail", "b", false
 
     exitoption "help", "h", 
       "\n" & """Usage: $1 [path [path ...] ]
@@ -51,8 +53,11 @@ proc main*(options: varargs[string]): int =
     echo exc.getStackTrace()
     echo "\n"
 
-  var results = runner(features, verbosity)
-  result = basicReporter(results, stdout, verbosity)
+  let options = CucumberOptions(
+    verbosity: verbosity, bail: bail)
+
+  var results = runner(features, options)
+  result = basicReporter(results, stdout, options)
 
 {.pop.}
 

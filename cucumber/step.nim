@@ -31,9 +31,6 @@ type
     items: array[StepType, seq[StepDefinition]]
   StepDefinitions* = ref StepDefinitionsObj
 
-  ## feature file contains bad syntax
-  StepDefinitionError = object of ValueError
-
 var stGiven0 : seq[StepDefinition] = @[]
 var stWhen0 : seq[StepDefinition] = @[]
 var stThen0 : seq[StepDefinition] = @[]
@@ -50,16 +47,6 @@ proc stepTypeFor*(stName: string) : StepType {.procvar.} =
   of "then": return stThen
   else:
     raise newException(Exception, "Unexpected step type name \"$1\"" % stName)
-
-proc contextTypeFor*(cname: string) : ContextType =
-  case cname.substr().toLower
-  of "global": result = ctGlobal
-  of "feature": result = ctFeature
-  of "scenario": result = ctScenario
-  of "quote": result = ctQuote
-  of "column": result = ctTable
-  else:
-    raise newException(Exception, "unknown context " & cname)
 
 type
   ArgumentNodes = tuple
@@ -83,44 +70,43 @@ proc step(
     Creates a step definition.
     
     The macros ``Given``, ``When``, ``Then``, below, are wrappers
-    around this procedure. Given a call:
+    around this procedure. Given a call::
     
-    Given r"this step contains a (-?\d+) and <e>", (
-        a: int, global.b: var int, quote.c: string, column.d: seq[int],
-        e: int):
-      echo c
-      b = a
+      Given r"this step contains a (-?\d+) and <e>", (
+          a: int, global.b: var int, quote.c: string, column.d: seq[int],
+          e: int):
+        echo c
+        b = a
     
-    The resulting step definition would be:
-    
-        let stepRE = re(
-          replace(r"this step contains a (-?\d+) and <e>", re("<e>"), 
-            parseTypeIntPattern))
-        proc stepDefinition(stepArgs: StepArgs) : StepResult =
-          let actual = stepArgs.stepText.match(stepRE).get.captures
-          block:
-            let a : int = parseInt(actual[0])
-            let b : int = paramTypeIntGetter(ctGlobal, "b")
-            let c : string = paramTypeSeqIntGetter(ctQuote, "c")
-            let d : seq[int] = paramTypeSeqIntGetter(ctTable, "d")
-            let e : int = parseInt(actual[1])
-            result = StepResult(args: stepArgs, value: srSuccess)
-            try:
-              echo c
-              b = a
-              paramTypeIntSetter(ctGlobal, "b", b)
-            except:
-              var exc = getCurrentException()
-              result.value = srFail
-              result.exception = exc
-    
-        let stepDef = StepDefinition(
-          stepRE: stepRE, defn: stepDefinition, blockParamName: "c"
-          columns: newTable[string, ColumnSetter]())
-        stepDef.columns["d"] = proc(strVal: string): void = 
-          paramTypeSeqIntColumnSetter("d", strVal)
-        stepDefinitions[stGiven].add(stepDef)
+    The resulting step definition would be::
 
+      let stepRE = re(
+        replace(r"this step contains a (-?\d+) and <e>", re("<e>"), 
+          parseTypeIntPattern))
+      proc stepDefinition(stepArgs: StepArgs) : StepResult =
+        let actual = stepArgs.stepText.match(stepRE).get.captures
+        block:
+          let a : int = parseInt(actual[0])
+          var b : int = paramTypeIntGetter(ctGlobal, "b")
+          let c : string = paramTypeSeqIntGetter(ctQuote, "c")
+          let d : seq[int] = paramTypeSeqIntGetter(ctTable, "d")
+          let e : int = parseInt(actual[1])
+          result = StepResult(args: stepArgs, value: srSuccess)
+          try:
+            echo c
+            b = a
+            paramTypeIntSetter(ctGlobal, "b", b)
+          except:
+            var exc = getCurrentException()
+            result.value = srFail
+            result.exception = exc
+  
+      let stepDef = StepDefinition(
+        stepRE: stepRE, defn: stepDefinition, blockParamName: "c"
+        columns: newTable[string, ColumnSetter]())
+      stepDef.columns["d"] = proc(strVal: string): void = 
+        paramTypeSeqIntColumnSetter("d", strVal)
+      stepDefinitions[stGiven].add(stepDef)
     
     Argument list syntax:
     ---------------------
@@ -218,7 +204,7 @@ type ArgSpec = tuple
   aloc: ContextType
   avar: bool
 
-proc unpackArg(argdef: NimNode) : ArgSpec =
+proc unpackArg*(argdef: NimNode) : ArgSpec =
   var anameN = argdef[0]
   var atypeN = argdef[1]
   var aname, atype : string
