@@ -5,6 +5,7 @@
 ## See also http://docs.behat.org/en/v2.5/guides/1.gherkin.html
 ## for syntax.
 
+import sets
 from streams import newFileStream, Stream, readLine
 from sequtils import mapIt, apply
 from sets import toSet, contains
@@ -14,18 +15,18 @@ import options
 import "./types"
 
 type
-  Node* = ref NodeObj
-  NodeObj* {.shallow.} = object of RootObj
+  TestNode* = ref TestNodeObj
+  TestNodeObj* {.shallow.} = object of RootObj
     description*: string
-    tags*: seq[string]
+    tags*: StringSet
     comments*: seq[string]
-    parent*: Node
+    parent*: TestNode
 
   Scenario* = ref ScenarioObj
   Step* = ref StepObj
   Examples* = ref ExamplesObj
 
-  Feature* {.shallow.} = ref object of NodeObj
+  Feature* {.shallow.} = ref object of TestNodeObj
     ## Contents of a gherkin (`.feature`) file.
 
     name*: string
@@ -35,20 +36,20 @@ type
 
   Features* = seq[Feature]
 
-  ScenarioObj* {.shallow.} = object of Node
+  ScenarioObj* {.shallow.} = object of TestNode
     ## a senario or scenario outline of a feature
 
     steps*: seq[Step]
     examples*: seq[Examples]
 
-  StepObj* {.shallow.} = object of Node
+  StepObj* {.shallow.} = object of TestNode
     stepType*: StepType
     text*: string
     blockParam*: string
     lineNumber*: int
     table*: Examples
 
-  ExamplesObj* {.shallow.} = object of Node
+  ExamplesObj* {.shallow.} = object of TestNode
     columns*: seq[string]
     values*: seq[seq[string]]
 
@@ -98,7 +99,7 @@ proc newFeature(name: string): Feature =
   result = Feature(
     name: name,
     comments: @[],
-    tags: @[],
+    tags: initSet[string](),
     background: nil,
     scenarios: @[]
   )
@@ -107,6 +108,7 @@ proc newScenario(feature: Feature, text: string) : Scenario =
   result = Scenario(
     description: description,
     parent: feature,
+    tags: initSet[string](),
     steps: @[],
     comments: @[],
     examples: @[])
@@ -173,7 +175,6 @@ proc nextLine(stream: var LineStream, skipBlankLines : bool = true) : Line =
     return newLine(text, ltComment, stream.lineNumber)
   if line[0] == '@':
     return newLine(text, ltTags, stream.lineNumber)
-    #let tags = line.split(",").mapIt it.strip(re "\s")
 
   let headMatch = line.match headRE
   if headMatch.isSome:
@@ -196,7 +197,7 @@ proc readPreamble(feature: Feature, stream: var LineStream): void =
     of ltComment:
       feature.comments.add line.content
     of ltTags:
-      feature.tags.add line.content.split()
+      feature.tags.incl line.content.split().toSet
     of ltHead:
       stream.pushback line
       break
@@ -233,14 +234,14 @@ proc readHead(feature: Feature, stream: var LineStream): void =
 
 proc readBody(feature: Feature, stream: var LineStream): void =
   var comments : seq[string] = @[]
-  var tags: seq[string] = @[]
+  var tags: StringSet = initSet[string]()
   while true:
     let line = stream.nextLine
     case line.ltype
     of ltComment:
       comments.add line.content
     of ltTags:
-      tags.add line.content.split
+      tags.incl line.content.split.toSet
     of ltEOF: 
       break
     of ltHead:
@@ -256,7 +257,7 @@ proc readBody(feature: Feature, stream: var LineStream): void =
         scenario.comments = comments & scenario.comments
         scenario.tags = tags
         comments = @[]
-        tags = @[]
+        tags = initSet[string]()
     else:
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
   feature.comments.add comments

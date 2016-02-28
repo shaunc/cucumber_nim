@@ -1,11 +1,16 @@
+
 # cucumber/main
 
 
+import future
 import os
 import strutils
 import commandeer 
-
+import sets
 import tables
+import nre
+import options
+
 import "./types"
 import "./feature"
 import "./loader"
@@ -21,14 +26,42 @@ template withDir*(newDir: string, body: typed) : typed =
   finally:
     os.setCurrentDir(currentDir)
 
-{.push hint[XDeclaredButNotUsed]: off.}
+
+let tagRE = re"(?:\s*(~)?(?:(@[\w_]+)|([~*+])\[(.*)\]))"
+proc buildTagFilter(tagStr: string, op: string = "+"): TagFilter =
+  if tagStr == nil or tagStr.len == 0:
+    return (tags: StringSet)=> not ("@skip" in tags)
+
+  let tagStr = tagStr.strip
+  let match = (tagStr.match tagRE).get
+  let c = match.captures.toSeq
+  let (neg, tag, nextOp, inner) = (c[0], c[1], c[2], c[3])
+  result = proc (tags: StringSet): bool =
+    if tag != nil:
+      result = if neg == nil: tag in tags else: not(tag in tags)
+    if nextOp != nil:
+      result = buildTagFilter(inner, nextOp)(tags)
+      if neg != nil:
+        result = not result
+    var remaining = tagStr[match.match.len..^1].strip(chars = {',', ' '})
+    if remaining.len > 0:
+      if op == "+":
+        result = result or buildTagFilter(remaining, op)(tags)
+      elif op == "*":
+        result = result and buildTagFilter(remaining, op)(tags)
+      else:
+        raise newException(ValueError, "Unknown operator for tag expr: " & op)
+
+{.push hint[XDeclaredButNotUsed]:off .}
 
 proc main*(options: varargs[string]): int =
   var appName = getAppFilename()
+  {.push warning[Deprecated]:off.}
   commandline:
     arguments paths, string, false
     option verbosity, int, "verbosity", "v", 0
     option bail, bool, "bail", "b", false
+    option tags, string, "tags", "t", nil
 
     exitoption "help", "h", 
       "\n" & """Usage: $1 [path [path ...] ]
@@ -36,6 +69,7 @@ proc main*(options: varargs[string]): int =
     "/**" will be searched recursively for features. By default, "./features"
     directory is searched.
       """ % appName
+  {.pop.}
 
   for opt in options:
     if opt.startsWith("-"):
@@ -54,7 +88,7 @@ proc main*(options: varargs[string]): int =
     echo "\n"
 
   let options = CucumberOptions(
-    verbosity: verbosity, bail: bail)
+    verbosity: verbosity, bail: bail, tagFilter: buildTagFilter(tags) )
 
   var results = runner(features, options)
   result = basicReporter(results, stdout, options)

@@ -1,13 +1,16 @@
 # cucumber/runner.nim
 
+import future
+import sets
 import strutils
 import options
 import nre
 import sequtils
 import "./types"
 import "./feature"
-import "./step"
 import "./parameter"
+import "./step"
+import "./hook"
 
 export Scenario, Feature
 
@@ -38,7 +41,7 @@ proc newNoDefinitionForStep(
 
 proc matchStepDefinition(
     step : Step, stepDefinitions : seq[StepDefinition],
-    options: CucumbEroptions) : StepDefinition =
+    options: CucumberOptions) : StepDefinition =
   for defn in stepDefinitions:
     var isMatch = step.text.match(defn.stepRE)
     #echo step.text, defn.stepRE.pattern, isMatch.isSome
@@ -109,38 +112,88 @@ iterator exampleScenarios(
       examples: newSeq[Examples]()
       )
 
-proc runScenario(scenario: Scenario, options: CucumbEroptions) : ScenarioResult
-proc runner*(features: Features, options: CucumbEroptions) : ResultsIter =
+proc runHooks(
+    hookType: HookType, tags: StringSet, testNode: TestNode): HookResult
+proc runScenario(scenario: Scenario, options: CucumberOptions) : ScenarioResult
+iterator runFeature(
+    feature: Feature, options: CucumberOptions): OrdResult =
+
+  if options.verbosity > 0:
+    echo "feature \"$1\" scenarios $2" % [
+      feature.description, $feature.scenarios.len ]
+  resetContext(ctFeature)
+  let hookResult = runHooks(htBeforeFeature, feature.tags, feature)
+  if hookResult.value != hrSuccess:
+    let sresult = ScenarioResult(
+      stepResult: StepResult(value: srFail, hookResult: hookResult))
+    yield (0, sresult)
+  else:
+    var i = 0
+    for scenario in feature.scenarios:
+      if scenario.examples.len == 0:
+        yield (i, runScenario(scenario, options))
+        i += 1
+      else:
+        for escenario in exampleScenarios(scenario):
+          yield (i, runScenario(escenario, options))
+          i += 1
+    let afterHookResult = runHooks(htAfterFeature, feature.tags, feature)
+    if afterHookResult.value != hrSuccess:
+      let sresult = ScenarioResult(
+        stepResult: StepResult(value: srFail, hookResult: afterHookResult))
+      yield (i, sresult)
+
+proc runner*(features: Features, options: CucumberOptions) : ResultsIter =
   if options.verbosity > 0:
     echo "features: " & $features.len
   iterator iresults() : OrdResult {.closure.} =
     var i = 0;
+    let hookResult = runHooks(htBeforeAll, initSet[string](), nil)
+    if hookResult.value != hrSuccess:
+      let sresult = ScenarioResult(
+        stepResult: StepResult(value: srFail, hookResult: hookResult))
+      yield (0, sresult)
+      return
     for feature in features:
-      if options.verbosity > 0:
-        echo "feature \"$1\" scenarios $2" % [
-          feature.description, $feature.scenarios.len ]
-      resetContext(ctFeature)
-      for scenario in feature.scenarios:
-        if scenario.examples.len == 0:
-          yield (i, runScenario(scenario, options))
-          i += 1
-        else:
-          for escenario in exampleScenarios(scenario):
-            yield (i, runScenario(escenario, options))
-            i += 1
+      for j, sresult in runFeature(feature, options):
+        yield (i, sresult)
+        i += 1
+    let afterHookResult = runHooks(htAfterAll, initSet[string](), nil)
+    if afterHookResult.value != hrSuccess:
+      let sresult = ScenarioResult(
+        stepResult: StepResult(value: srFail, hookResult: afterHookResult))
+      yield (i, sresult)
+
   return iresults
 
-proc runStep(step: Step, options: CucumbEroptions) : StepResult
-proc runScenario(scenario: Scenario, options: CucumbEroptions) : ScenarioResult =
-  if options.verbosity > 1:
-    echo "  scenario \"$1\"" % scenario.description
-  resetContext(ctScenario)
+proc runStep(
+    tags: StringSet, step: Step, options: CucumberOptions) : StepResult
+proc runScenario(
+    scenario: Scenario, options: CucumberOptions) : ScenarioResult =
+
+  let feature = Feature(scenario.parent)
   var sresult = StepResult(value: srSuccess)
+  result = ScenarioResult(
+    stepResult: sresult, feature: feature, scenario: scenario)
+  let tags = scenario.tags + scenario.parent.tags
+  if options.verbosity > 1:
+    echo "  scenario \"$1\": $2" % [scenario.description, $tags]
+  if not options.tagFilter(tags):
+    if not ("@skip" in tags):
+      return nil
+    sresult.value = srSkip
+    return
+  resetContext(ctScenario)
   var badstep : Step
+  let hookResult = runHooks(htBeforeScenario, tags, scenario)
+  if hookResult.value != hrSuccess:
+    sresult.hookResult = hookResult
+    sresult.value = srFail
+    return result
   try:
     for i, step in scenario.steps:
       badstep = step
-      sresult = runStep(step, options)
+      sresult = runStep(tags, step, options)
       if sresult.value != srSuccess:
         break
       else:
@@ -149,21 +202,74 @@ proc runScenario(scenario: Scenario, options: CucumbEroptions) : ScenarioResult 
     var exc = getCurrentException()
     let value = if exc of NoDefinitionForStep: srNoDefinition else: srFail
     sresult = StepResult(value: value, exception: exc)
-  let feature = Feature(scenario.parent)
-  result = ScenarioResult(
-    stepResult: sresult, 
-    feature: feature, scenario: scenario, step: badstep)
+    result.stepResult = sresult
+  finally:
+    sresult.hookResult = runHooks(htAfterScenario, tags, scenario)
+    if sresult.hookResult.value == hrFail:
+      sresult.value = srFail
+  result.step = badstep
 
 proc fillTable(sd: StepDefinition, stepTable: Examples): void
-proc runStep(step: Step, options: CucumbEroptions) : StepResult =
+proc runStep(
+    tags: StringSet, step: Step, options: CucumberOptions) : StepResult =
+
   if options.verbosity > 2:
     echo "    step ", step.text
   let sd = matchStepDefinition(step, stepDefinitions[step.stepType], options)
   fillTable(sd, step.table)
+  let hookResult = runHooks(htBeforeStep, tags, step)
+  if hookResult.value != hrSuccess:
+    return StepResult(value: srFail, hookResult: hookResult)
+  result = StepResult(value: srSuccess)
   var args = StepArgs(stepText: step.text)
   if sd.blockParamName != nil:
     paramTypeStringSetter(ctQuote, sd.blockParamName, step.blockParam)
-  result = sd.defn(args)
+  try:
+    result = sd.defn(args)
+  finally:
+    result.hookResult = runHooks(htAfterStep, tags, step)
+    if result.hookResult.value == hrFail:
+      result.value = srFail
+
+iterator count(a, b: int) : int =
+  if a >= 0 and b >= 0:
+    if a < b:
+      for i in countUp(a, b):
+        yield i
+    else:
+      for i in countDown(a, b):
+        yield i
+
+proc runHooks(
+    hookType: HookType, tags: StringSet, testNode: TestNode): HookResult =
+  result = HookResult(value: hrSuccess)
+  let definitions = hookDefinitions[hookType]
+  var dfrom, dto: int
+  if hookType in {htAfterAll, htAfterFeature, htAfterScenario, htAfterStep}:
+    (dfrom, dto) = (definitions.high, definitions.low)
+  else:
+    (dfrom, dto) = (definitions.low, definitions.high)
+  for ihookDef in count(dfrom, dto):
+    let hookDef = definitions[ihookDef]
+    if not hookDef.tagFilter(tags):
+      continue
+    try:
+      case hookType
+      of htBeforeAll, htAfterAll:
+        hookDef.defn(nil, nil, nil)
+      of htBeforeFeature, htAfterFeature:
+        hookDef.defn(Feature(testNode), nil, nil)
+      of htBeforeScenario, htAfterScenario:
+        hookDef.defn(Feature(testNode.parent), Scenario(testNode), nil)
+      of htBeforeStep, htAfterStep:
+        hookDef.defn(
+          Feature(testNode.parent.parent), Scenario(testNode.parent), 
+          Step(testNode))
+    except:
+      let exc = getCurrentException()
+      result.value = hrFail
+      result.exception = exc
+      break
 
 #TODO
 proc fillTable(sd: StepDefinition, stepTable: Examples): void =

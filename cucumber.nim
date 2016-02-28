@@ -14,7 +14,7 @@ export main.main, main.withDir
 export types.StepType, types.StepResult, types.StepResultValue
 export types.HookType
 export types.ContextType
-export types.CucumberOptions
+export types.StringSet, types.TagFilter, types.CucumberOptions
 export step.Given, step.When, step.Then
 export step.StepDefinition, step.StepArgs, step.stepDefinitions
 export step.resetContext

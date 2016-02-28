@@ -149,7 +149,6 @@ proc makeTagFilter(tagFilter: NimNode, tags: NimNode): NimNode =
     proc `tagFilter`(`tagSet`: StringHash) : bool =
       `tagExpr`
   result = result[0]
-  echo result.treeRepr
 
 proc processArguments(arglist: NimNode): ArgumentsNodes =
   let (getters, setters) = (newStmtList(), newStmtList())

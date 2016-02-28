@@ -1,5 +1,6 @@
 # define_steps.feature
 
+@stepMod
 Feature: Define steps implementations
   As a nim developer
   In order to test that my code meets my specifications

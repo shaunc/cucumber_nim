@@ -1,10 +1,10 @@
 # define_hooks.feature
 
+@hookMod
 Feature: Define hook implementations
   As a nim developer
   In order to test that my code meets my specifications
   I want to define implement hooks to be called during the testing process.
-
 
 Scenario Outline: trival definition of <hookType>.
   Given a <hookType> hook definition:
@@ -28,55 +28,27 @@ Scenario Outline: trival definition of <hookType>.
     | BeforeStep |
     | AfterStep |
 
-# Scenario: definition pattern includes type regexes for placeholders.
-#   Given a step definition:
-#   """
-#     Given "a <foo>", (foo: int):
-#       discard foo
-#   """
-#   Then step Given 0 has pattern "a (-?\d+)"
 
-# Scenario: exception causes failure.
-#   Given a step definition:
-#   """
-#   Given "a failing step definition", ():
-#     assert 0 == 1
-#   """
-#   Then running step Given 0 fails with error:
-#   """
-#   false
-#   """
+Scenario: reads argument <value> from <context> context.
+  Given a hook definition:
+  """
+  BeforeAll @any, (<context>.a: int):
+    assert a == <value>
+  """
+  Then hook BeforeAll 0 takes 1 arguments from context.
+  When <context> context parameter a is <value>
+  Then running hook BeforeAll 0 <succeedsOrFails>.
 
-# Scenario: reads argument from step text.
-#   Given a step definition:
-#   """
-#   Given r"a (\d+)", (a: int):
-#     assert a == 1
-#   """
-#   Then step Given 0 takes 1 arguments from step text.
-#   Then running step Given 0 succeeds with text "a 1"
-#   Then running step Given 0 fails with text "a 0"
+  Examples:
+  | context  |
+  | global   |
+  | feature  |
+  | scenario |
 
-# Scenario: reads argument <value> from <context> context.
-#   Given a step definition:
-#   """
-#   Given "a step definition:", (<context>.a: int):
-#     assert a == 1
-#   """
-#   Then step Given 0 takes 1 arguments from context.
-#   When <context> context parameter a is <value>
-#   Then running step Given 0 <succeedsOrFails>.
-
-#   Examples:
-#   | context  |
-#   | global   |
-#   | feature  |
-#   | scenario |
-
-#   Examples:
-#   | value | succeedsOrFails |
-#   | 0     | fails           |
-#   | 1     | succeeds        |
+  Examples:
+  | value | succeedsOrFails |
+  | 0     | succeeds        |
+  | 1     | succeeds        |
 
 # Scenario: writes argument <value> to <context> context.
 #   Given a step definition:
