@@ -26,5 +26,5 @@ export hook.BeforeScenario, hook.AfterScenario
 export hook.BeforeStep, hook.AfterStep
 export typeinfo.Any, toAny
 export tables.`[]`, tables.`[]=`
-#export parameter.declarePT
+#export parameter.DeclareRefParamType, parameter.DeclareParamType
 #export parameter.parseInt, parameter.parseBool, parameter.parseString

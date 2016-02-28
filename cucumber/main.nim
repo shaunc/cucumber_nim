@@ -26,6 +26,11 @@ template withDir*(newDir: string, body: typed) : typed =
   finally:
     os.setCurrentDir(currentDir)
 
+proc `$$`[T](s : T) : string =
+  if s == nil: 
+    return "(nil)"
+  else:
+    return $s
 
 let tagRE = re"(?:\s*(~)?(?:(@[\w_]+)|([~*+])\[(.*)\]))"
 proc buildTagFilter(tagStr: string, op: string = "+"): TagFilter =

@@ -28,7 +28,6 @@ Scenario Outline: trival definition of <hookType>.
     | BeforeStep |
     | AfterStep |
 
-
 Scenario: reads argument <value> from <context> context.
   Given a hook definition:
   """
@@ -50,44 +49,110 @@ Scenario: reads argument <value> from <context> context.
   | 0     | succeeds        |
   | 1     | succeeds        |
 
-# Scenario: writes argument <value> to <context> context.
-#   Given a step definition:
-#   """
-#   Given "a step definition:", (<context>.a: var int):
-#     a = <value>
-#   """
-#   Then running step Given 0 succeeds.
-#   Then <context> context parameter a is <value>
+Scenario: writes argument <value> from <context> context.
+  Given a hook definition:
+  """
+  BeforeAll @any, (<context>.a: var int):
+    a = 1
+  """
+  Then hook BeforeAll 0 takes 1 arguments from context.
+  Then running hook BeforeAll 0 succeeds.
+  Then <context> context parameter a is 1
 
-#   Examples:
-#   | context  |
-#   | global   |
-#   | feature  |
-#   | scenario |
-
-#   Examples:
-#   | value |
-#   | 0     |
-#   | 1     |
-
-# Scenario: reads argument from block quote (<succeedsOrFails>)
-#   Given a step definition:
-#   """
-#   Given "a step definition:", (quote.a: string):
-#     assert a.strip == "foo"
-#   """
-#   Then step Given 0 expects a block.
-#   Then step Given 0 <succeedsOrFails> with block <block>.
-
-#   Examples:
-#   | succeedsOrFails | block |
-#   | succeeds        | foo   |
-#   | fails           | bar   |
+  Examples:
+  | context  |
+  | global   |
+  | feature  |
+  | scenario |
 
 
-# # TODO
-# # err: no var quote args
-# # block -- can be type convertable from string
+@filter
+Scenario: with filter "<filter>", hook tag filter <matches> {<set>}.
+  Given a hook definition:
+  """
+    BeforeAll <filter>, ():
+      discard
+  """
+  Then hook BeforeAll 0 tag filter <matches> {<set>}.
 
-# # table column args
-# # err: no var column args
+  Examples:
+  | filter       | set       | matches       |
+  | @any         |           | matches       |
+  | @foo         |           | doesn't match |
+  | @foo         | @foo      | matches       |
+  | @foo         | @bar      | doesn't match |
+  | @foo         | @foo,@bar | matches       |
+  | ~@foo        |           | matches       |
+  | ~@foo        | @foo      | doesn't match |
+  | ~@foo        | @bar      | matches       |
+  | ~@foo        | @foo,@bar | doesn't match |
+  | *[]          |           | matches       |
+  | *[]          | @foo      | matches       |
+  | ~*[]         |           | doesn't match |
+  | ~*[]         | @foo      | doesn't match |
+  | +[]          |           | doesn't match |
+  | +[]          | @foo      | doesn't match |
+  | ~+[]         |           | matches       |
+  | ~+[]         | @foo      | matches       |
+  | *[@foo]      |           | doesn't match |
+  | *[@foo]      | @foo      | matches       |
+  | *[@foo]      | @bar      | doesn't match |
+  | *[@foo]      | @foo,@bar | matches       |
+  | ~*[@foo]     |           | matches       |
+  | ~*[@foo]     | @foo      | doesn't match |
+  | ~*[@foo]     | @bar      | matches       |
+  | ~*[@foo]     | @foo,@bar | doesn't match |
+  | +[@foo]      |           | doesn't match |
+  | +[@foo]      | @foo      | matches       |
+  | +[@foo]      | @bar      | doesn't match |
+  | +[@foo]      | @foo,@bar | matches       |
+  | ~+[@foo]     |           | matches       |
+  | ~+[@foo]     | @foo      | doesn't match |
+  | ~+[@foo]     | @bar      | matches       |
+  | ~+[@foo]     | @foo,@bar | doesn't match |
+  | *[@f,@b]     |           | doesn't match |
+  | *[@f,@b]     | @f        | doesn't match |
+  | *[@f,@b]     | @b        | doesn't match |
+  | *[@f,@b]     | @f,@b     | matches       |
+  | ~*[@f,@b]    |           | matches       |
+  | ~*[@f,@b]    | @f        | matches       |
+  | ~*[@f,@b]    | @b        | matches       |
+  | ~*[@f,@b]    | @f,@b     | doesn't match |
+  | +[@f,@b]     |           | doesn't match |
+  | +[@f,@b]     | @f        | matches       |
+  | +[@f,@b]     | @b        | matches       |
+  | +[@f,@b]     | @f,@b     | matches       |
+  | ~+[@f,@b]    |           | matches       |
+  | ~+[@f,@b]    | @f        | doesn't match |
+  | ~+[@f,@b]    | @b        | doesn't match |
+  | ~+[@f,@b]    | @f,@b     | doesn't match |
+  | *[@f,~@b]    |           | doesn't match |
+  | *[@f,~@b]    | @f        | matches       |
+  | *[@f,~@b]    | @b        | doesn't match |
+  | *[@f,~@b]    | @f,@b     | doesn't match |
+  | ~*[@f,~@b]   |           | matches       |
+  | ~*[@f,~@b]   | @f        | doesn't match |
+  | ~*[@f,~@b]   | @b        | matches       |
+  | ~*[@f,~@b]   | @f,@b     | matches       |
+  | +[@f,~@b]    |           | matches       |
+  | +[@f,~@b]    | @f        | matches       |
+  | +[@f,~@b]    | @b        | doesn't match |
+  | +[@f,~@b]    | @f,@b     | matches       |
+  | ~+[@f,~@b]   |           | doesn't match |
+  | ~+[@f,~@b]   | @f        | doesn't match |
+  | ~+[@f,~@b]   | @b        | matches       |
+  | ~+[@f,~@b]   | @f,@b     | doesn't match |
+  | *[@f,+[@b,@z]] | @f       | doesn't match |
+  | *[@f,+[@b,@z]] | @b       | doesn't match |
+  | *[@f,+[@b,@z]] | @f,@b    | matches       |
+  | *[@f,+[@b,@z]] | @f,@z    | matches       |
+  | *[@f,+[@b,@z]] | @b,@z    | doesn't match |
+  | *[@f,+[@b,@z]] | @f,@b,@z | matches       |
+  | +[@f,*[@b,@z]] | @f       | matches       |
+  | +[@f,*[@b,@z]] | @b       | doesn't match |
+  | +[@f,*[@b,@z]] | @f,@b    | matches       |
+  | +[@f,*[@b,@z]] | @f,@z    | matches       |
+  | +[@f,*[@b,@z]] | @b,@z    | matches       |
+  | +[@f,*[@b,@z]] | @f,@b,@z | matches       |
+
+

@@ -12,12 +12,10 @@ import "./feature"
 import "./step"
 
 type
-  StringHash* = HashSet[string]
-  HookFilter* = proc(tags: StringHash): bool
   HookFct* = proc(feature: Feature, scenario: Scenario, step: Step) : void
   HookDefinition* = ref object
     hookType*: HookType
-    tagFilter*: HookFilter
+    tagFilter*: TagFilter
     defn*: HookFct
   HookDefinitions* = array[HookType, seq[HookDefinition]]
 
@@ -120,17 +118,27 @@ proc transformTags(tagSet: NimNode, tags: NimNode): NimNode =
       result = newLit(true)
     else:
       result = newPar(infix(newLit("@" & $body), "in", tagSet))
-  of "~@":
-    let sbody = prefix(body, "@")
-    result = newPar(prefix(transformTags(tagSet, sbody), "not"))
   of "~":
     result = newPar(prefix(transformTags(tagSet, body), "not"))
   of "*":
-    result = newPar(body.foldl infix(
-      transformTags(tagSet, a), "and", transformTags(tagSet, b)))
+    if body.len == 0:
+      result = newLit(true)
+    elif body.len == 1:
+      result = transformTags(tagSet, body[0])
+    else:
+      result = newPar(body.foldl infix(
+        transformTags(tagSet, a), "and", transformTags(tagSet, b)))
   of "+":
-    result = newPar(body.foldl infix(
-      transformTags(tagSet, a), "or", transformTags(tagSet, b)))
+    if body.len == 0:
+      result = newLit(false)
+    elif body.len == 1:
+      result = transformTags(tagSet, body[0])
+    else:
+      result = newPar(body.foldl infix(
+        transformTags(tagSet, a), "or", transformTags(tagSet, b)))
+  of "~@", "~*", "~+":
+    let sbody = prefix(body, head[1..1])
+    result = newPar(prefix(transformTags(tagSet, sbody), "not"))
   else:
     raise newException(
       HookDefinitionError, "Tag expression: unexpected prefix: " & head)
@@ -146,7 +154,7 @@ proc makeTagFilter(tagFilter: NimNode, tags: NimNode): NimNode =
       HookDefinitionError, 
       "Tag expression invalid: \"$1\"" % tags.toStrLit.strVal)
   result = quote do:
-    proc `tagFilter`(`tagSet`: StringHash) : bool =
+    proc `tagFilter`(`tagSet`: StringSet) : bool =
       `tagExpr`
   result = result[0]
 
@@ -191,7 +199,10 @@ macro AfterStep*(tags: untyped, argList: untyped, hookDef: untyped) : untyped =
 
 when isMainModule:
 
-  BeforeAll @any, ():
+  BeforeAll *[@foo], ():
+    discard
+
+  BeforeAll *[@f,~@b], ():
     discard
 
   BeforeAll *[@foo, +[~@bar, @baz]], (feature.foo: int, scenario.bar: var string):

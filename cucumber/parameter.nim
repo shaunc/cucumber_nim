@@ -160,7 +160,7 @@ macro declareContextColumnSetter(
       `addStmt`
   #echo result.toStrLit.strVal
 
-template declarePT*(
+template DeclareParamType*(
     name: static[string],
     ptype: untyped,
     parseFct: typed,
@@ -171,7 +171,7 @@ template declarePT*(
   ##[
     Declare a parameter type.
 
-    ``declarePT("int", int, parseInt, newInt, r"(-?\d+)")`` results in
+    ``DeclareParamType("int", int, parseInt, newInt, r"(-?\d+)")`` results in
     
     ```
     const paramTypeIntName* = "int"
@@ -218,7 +218,7 @@ template declarePT*(
   declareContextSetter(name, ptype)
   declareContextColumnSetter(name, ptype)
 
-macro declareRefPT*(ptype: untyped) : untyped =
+macro DeclareRefParamType*(ptype: untyped) : untyped =
   ##[
     Declare reference type.
 
@@ -227,11 +227,11 @@ macro declareRefPT*(ptype: untyped) : untyped =
   ]##
   let name = $ptype
   quote do:
-    declarePT(`name`, `ptype`, nil, nil, nil)
+    DeclareParamType(`name`, `ptype`, nil, nil, nil)
 
 export strutils.parseInt
 proc newInt() : int = 0
-declarePT("int", int, strutils.parseInt, newInt, r"(-?\d+)")
+DeclareParamType("int", int, strutils.parseInt, newInt, r"(-?\d+)")
 
 proc parseBool*(s: string) : bool = 
   case s
@@ -240,19 +240,19 @@ proc parseBool*(s: string) : bool =
 
 proc newBool() : bool = false
 const boolPattern = r"((?:true)|(?:false)|(?:yes)|(?:no)|(?:a)|(?:an))";
-declarePT("bool", bool, parseBool, newBool, boolPattern)
+DeclareParamType("bool", bool, parseBool, newBool, boolPattern)
 
 proc newStringA(): string = ""
 proc parseString*(s: string) : string = s
-declarePT("string", string, parseString, newStringA, r"(.*)")
+DeclareParamType("string", string, parseString, newStringA, r"(.*)")
 
 ## `blockParam` type is special: string filled from step block parameter
-## declarePT("blockParam", string, parseString, newStringA, nil)
+## DeclareParamType("blockParam", string, parseString, newStringA, nil)
 
 proc newSeqB[T]() : seq[T] = newSeq[T]()
 
-declarePT("seq[int]", seq[int], nil, newSeqB[int], nil)
-declarePT("seq[string]", seq[string], nil, newSeqB[string], nil)
-declarePT("seq[bool]", seq[bool], nil, newSeqB[bool], nil)
+DeclareParamType("seq[int]", seq[int], nil, newSeqB[int], nil)
+DeclareParamType("seq[string]", seq[string], nil, newSeqB[string], nil)
+DeclareParamType("seq[bool]", seq[bool], nil, newSeqB[bool], nil)
 
 
