@@ -26,6 +26,8 @@ type
   Step* = ref StepObj
   Examples* = ref ExamplesObj
 
+  FindFeatureSpec* = tuple[path: string, scenarioNumbers: seq[int]]
+
   Feature* {.shallow.} = ref object of TestNodeObj
     ## Contents of a gherkin (`.feature`) file.
 
@@ -82,18 +84,27 @@ proc newSyntaxError(line : Line, message : string, adjustLineNumber = 0) : ref F
     $(line.number + adjustLineNumber), message, line.content]
   return newException(FeatureSyntaxError, fullMessage)
 
-proc readFeature*(path: string): Feature
-proc readFeature*(fstream: Stream, path: string = "?"): Feature
-proc readFeature*(file: File, path: string = "?") : Feature
+proc readFeature*(find: FindFeatureSpec): Feature
+proc readFeature*(
+    fstream: Stream, find: FindFeatureSpec = ("?", nil)): Feature
+proc readFeature*(
+    file: File, find: FindFeatureSpec = ("?", nil)) : Feature
 
-proc loadFeature*(features: var seq[Feature], path: string): void = 
- features.add readFeature(path)
-proc loadFeature*(features: var seq[Feature], fstream: Stream, path: string = "?"): void = 
- features.add readFeature(fstream, path)
-proc loadFeature*(features: var seq[Feature], file: File, path: string = "?"): void =
- features.add readFeature(file, path)
+proc loadFeature*(features: var seq[Feature], find: FindFeatureSpec): void = 
+ features.add readFeature(find)
+proc loadFeature*(
+    features: var seq[Feature], fstream: Stream, 
+    find: FindFeatureSpec = ("?", nil)
+    ): void = 
+ features.add readFeature(fstream, find)
+proc loadFeature*(
+    features: var seq[Feature], file: File, 
+    find: FindFeatureSpec = ("?", nil)
+    ): void =
+ features.add readFeature(file, find)
 
-proc readFeature(feature: Feature, fstream: Stream): void
+proc readFeature(
+  feature: Feature, fstream: Stream, find: FindFeatureSpec): void
 
 proc newFeature(name: string): Feature = 
   result = Feature(
@@ -113,25 +124,32 @@ proc newScenario(feature: Feature, text: string) : Scenario =
     comments: @[],
     examples: @[])
 
-proc readFeature*(path: string) : Feature = 
-  let file = open(path)
+proc readFeature*(find: FindFeatureSpec) : Feature = 
+  let file = open(find.path)
   defer: file.close
-  return readFeature(file, path)
+  return readFeature(file, find)
 
-proc readFeature*(file: File, path: string = "?") : Feature =
-  result = newFeature(path)  
-  result.readFeature(newFileStream(file))
+proc readFeature*(
+    file: File, find: FindFeatureSpec = ("?", nil)) : Feature =
 
-proc readFeature*(fstream: Stream, path: string = "?"): Feature = 
-  result = newFeature(path)
-  result.readFeature(fstream)
+  result = newFeature(find.path)  
+  result.readFeature(newFileStream(file), find)
+
+proc readFeature*(
+    fstream: Stream, find: FindFeatureSpec = ("?", nil)): Feature = 
+
+  result = newFeature(find.path)
+  result.readFeature(fstream, find)
 
 proc newLineStream(stream: Stream) : LineStream =
   return LineStream(stream: stream, lineNumber: 0)
 
 proc readPreamble(feature: Feature, stream: var LineStream): void
 proc readHead(feature: Feature, stream: var LineStream): void
-proc readBody(feature: Feature, stream: var LineStream): void
+proc readBody(
+    feature: Feature, stream: var LineStream,
+    scenarioNumbers: seq[int]
+    ): void
 proc readScenario(
     feature: Feature, stream: var LineStream, head: Line
     ) : Scenario
@@ -140,11 +158,12 @@ proc readExamples(
     ) : void
 proc readBlock(step: Step, stream: var LineStream, indent: int): void
 
-proc readFeature(feature: Feature, fstream: Stream): void =
+proc readFeature(
+    feature: Feature, fstream: Stream, find: FindFeatureSpec): void =
   var stream = newLineStream(fstream)
   feature.readPreamble(stream)
   feature.readHead(stream)
-  feature.readBody(stream)
+  feature.readBody(stream, find.scenarioNumbers)
 
 proc newLine(line: string, ltype: LineType, number: int): Line =
   let sline = line.strip(trailing = false)
@@ -232,7 +251,10 @@ proc readHead(feature: Feature, stream: var LineStream): void =
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
   feature.explanation = explanation
 
-proc readBody(feature: Feature, stream: var LineStream): void =
+proc readBody(
+    feature: Feature, stream: var LineStream, 
+    scenarioNumbers: seq[int]
+    ): void =
   var comments : seq[string] = @[]
   var tags: StringSet = initSet[string]()
   while true:
@@ -260,6 +282,12 @@ proc readBody(feature: Feature, stream: var LineStream): void =
         tags = initSet[string]()
     else:
       raise newSyntaxError(line, "unexpected line: " & $line.ltype)
+  if scenarioNumbers != nil:
+    var scenarios : seq[Scenario] = @[]
+    for i, scenario in feature.scenarios:
+      if i + 1 in scenarioNumbers:
+        scenarios.add(scenario)
+    feature.scenarios = scenarios
   feature.comments.add comments
 
 const stepTypes = ["And", "Given", "When", "Then"]

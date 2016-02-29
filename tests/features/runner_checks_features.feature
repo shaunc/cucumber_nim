@@ -13,10 +13,12 @@ Background:
   """
   Given "I did something", ():
     discard
+
+  Given "I screwed up", ():
+    assert false
   """
 
 Scenario: run trivial feature
-  Then I have 1 Given step definition
   When I run the feature:
   """
   Feature: parse gherkin
@@ -24,7 +26,6 @@ Scenario: run trivial feature
   Then there are 0 scenario results
 
 Scenario: run scenario with single step
-  Then I have 1 Given step definition
   When I run the feature:
   """
   Feature: parse gherkin
@@ -32,16 +33,51 @@ Scenario: run scenario with single step
   Scenario: simple
     Given I did something
   """
-  Then there are 1 scenario results
   Then scenario results are distributed: [1, 0, 0, 0].
 
-# Scenario: run two scenarios
+Scenario: run two scenarios
+  When I run the feature:
+  """
+  Feature: parse gherkin
 
-# Scenario: run failing step
+  Scenario: simple
+    Given I did something
 
-# Scenario: run step without definition
+  Scenario: simple2
+    Given I did something
+  """
+  Then scenario results are distributed: [2, 0, 0, 0].
 
-# Scenario: run skipped scenario
+Scenario: run failing step
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  Scenario: simple
+    Given I screwed up
+  """
+  Then scenario results are distributed: [0, 1, 0, 0].
+
+Scenario: run skipped scenario
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  @skip
+  Scenario: simple
+    Given I did something
+  """
+  Then scenario results are distributed: [0, 0, 1, 0].
+
+Scenario: run step without definition
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  Scenario: simple
+    Given don't know how to do this
+  """
+  Then scenario results are distributed: [0, 0, 0, 1].
 
 # Scenario: run all examples in scenario outline
 
