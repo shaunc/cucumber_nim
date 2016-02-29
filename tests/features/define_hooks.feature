@@ -66,7 +66,7 @@ Scenario: writes argument <value> from <context> context.
   | scenario |
 
 
-@filter
+@hookFilters
 Scenario: with filter "<filter>", hook tag filter <matches> {<set>}.
   Given a hook definition:
   """

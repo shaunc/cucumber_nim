@@ -57,6 +57,30 @@ template resetColor(file: File, body: untyped) : untyped =
 
 proc newResultSummary(): ResultSummary = [0, 0, 0, 0]
 
+proc writeResultSummary*(
+    file: File, sresult: ScenarioResult, options: CucumberOptions): void =
+  let resultValue = sresult.stepResult.value
+  if resultValue != srSuccess or options.verbosity >= 0:
+    setResultColor(file, resultValue)
+    file.writeLine("  $1 $2" % [
+      resultChar[resultValue], sresult.scenario.description])
+  setColor(file, fgBlack)
+
+proc writeExceptionResult*(file: File, sresult: ScenarioResult) :void =
+  let resultValue = sresult.stepResult.value
+  setResultColor(file, resultValue)
+  file.writeLine(
+    "$1: $2" % [sresult.scenario.description, resultDesc[resultValue]])
+  file.writeLine("    Step: $1" % sresult.step.description)
+  if sresult.stepResult.exception != nil:
+    if isatty(file):
+      setForegroundColor(file, fgRed)
+    let exc = sresult.stepResult.exception
+    if not (exc of NoDefinitionForStep) or ((ref NoDefinitionForStep)exc).save:
+      file.writeLine("\nDetail: " & sresult.stepResult.exception.msg)
+      file.writeLine(sresult.stepResult.exception.getStackTrace())
+  file.writeLine("")
+
 proc basicReporter*(results: ResultsIter, file: File, options: CucumberOptions): int =
   var summary = newResultSummary()  
   if isatty(file):
@@ -72,13 +96,9 @@ proc basicReporter*(results: ResultsIter, file: File, options: CucumberOptions):
         file.writeLine("$1:\n" % lastFeature)
       let resultValue = sresult.stepResult.value
       summary[resultValue] += 1;
-      if resultValue != srSuccess or options.verbosity >= 0:
-        setResultColor(file, resultValue)
-        file.writeLine("  $1 $2" % [
-          resultChar[resultValue], sresult.scenario.description])
+      file.writeResultSummary(sresult, options)
       if sresult.stepResult.exception != nil:
         withExceptions.add(sresult)
-      setColor(file, fgBlack)
       if options.bail and resultValue != srSuccess and resultValue != srSkip:
         break
 
@@ -86,19 +106,7 @@ proc basicReporter*(results: ResultsIter, file: File, options: CucumberOptions):
     resetColor file:
       file.writeLine("")
       for i, sresult in withExceptions:
-        let resultValue = sresult.stepResult.value
-        setResultColor(file, resultValue)
-        file.writeLine(
-          "$1: $2" % [sresult.scenario.description, resultDesc[resultValue]])
-        file.writeLine("    Step: $1" % sresult.step.description)
-        if sresult.stepResult.exception != nil:
-          if isatty(file):
-            setForegroundColor(file, fgRed)
-          let exc = sresult.stepResult.exception
-          if not (exc of NoDefinitionForStep) or ((ref NoDefinitionForStep)exc).save:
-            file.writeLine("\nDetail: " & sresult.stepResult.exception.msg)
-            file.writeLine(sresult.stepResult.exception.getStackTrace())
-        file.writeLine("")
+        file.writeExceptionResult(sresult)
 
   if options.verbosity >= -2:
     for sresult in [srSuccess, srFail, srNoDefinition, srSkip]:

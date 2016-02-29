@@ -298,6 +298,8 @@ proc readScenario(
   of "Background":
     if feature.background == nil:
       feature.background = result
+      if feature.background.description.len <= 1:
+        feature.background.description = "(background)"
     else:
       raise newSyntaxError(
         head, "Feature may not have more than one background section.")

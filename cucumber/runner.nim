@@ -32,6 +32,13 @@ type
   OrdResult* = tuple[iscenario: int, sresult: ScenarioResult]
   ResultsIter* = iterator(): OrdResult {.closure.}
 
+proc runHooks(
+    hookType: HookType, tags: StringSet, testNode: TestNode,
+    options: CucumberOptions): HookResult
+proc runScenario(scenario: Scenario, options: CucumberOptions) : ScenarioResult
+proc runStep(
+    tags: StringSet, step: Step, options: CucumberOptions) : StepResult
+
 proc newNoDefinitionForStep(
     step: Step, msg: string, save: bool = true) : ref NoDefinitionForStep =
   let msg = "line: $1: $2" % [$step.lineNumber, msg]
@@ -113,10 +120,20 @@ iterator exampleScenarios(
       examples: newSeq[Examples]()
       )
 
-proc runHooks(
-    hookType: HookType, tags: StringSet, testNode: TestNode,
-    options: CucumberOptions): HookResult
-proc runScenario(scenario: Scenario, options: CucumberOptions) : ScenarioResult
+iterator iterScenario(
+    scenario: Scenario, options: CucumberOptions): ScenarioResult =
+
+  if scenario != nil:
+    if scenario.examples.len == 0:
+      let sresult = runScenario(scenario, options)
+      if sresult != nil:
+        yield sresult
+    else:
+      for escenario in exampleScenarios(scenario):
+        let sresult = runScenario(escenario, options)
+        if sresult != nil:
+          yield sresult
+
 iterator runFeature(
     feature: Feature, options: CucumberOptions): OrdResult =
 
@@ -131,18 +148,21 @@ iterator runFeature(
     yield (0, sresult)
   else:
     var i = 0
-    for scenario in feature.scenarios:
-      if scenario.examples.len == 0:
-        let sresult = runScenario(scenario, options)
-        if sresult != nil:
+    if feature.background != nil:
+      for bresult in iterScenario(feature.background, options):
+        if bresult.stepResult.value != srSuccess:
+          yield (i, bresult)
+          i += 1
+        else:
+          for scenario in feature.scenarios:
+            for sresult in iterScenario(scenario, options):
+              yield (i, sresult)
+              i += 1
+    else:
+      for scenario in feature.scenarios:
+        for sresult in iterScenario(scenario, options):
           yield (i, sresult)
           i += 1
-      else:
-        for escenario in exampleScenarios(scenario):
-          let sresult = runScenario(escenario, options)
-          if sresult != nil:
-            yield (i, sresult)
-            i += 1
     let afterHookResult = runHooks(
       htAfterFeature, feature.tags, feature, options)
     if afterHookResult.value != hrSuccess:
@@ -175,8 +195,6 @@ proc runner*(features: Features, options: CucumberOptions) : ResultsIter =
 
   return iresults
 
-proc runStep(
-    tags: StringSet, step: Step, options: CucumberOptions) : StepResult
 proc runScenario(
     scenario: Scenario, options: CucumberOptions) : ScenarioResult =
 
@@ -288,6 +306,9 @@ proc runHooks(
           Step(testNode))
     except:
       let exc = getCurrentException()
+      if options.verbosity >= 0:
+        echo "Error running hook " & exc.msg
+        echo exc.getStackTrace
       result.value = hrFail
       result.exception = exc
       break
