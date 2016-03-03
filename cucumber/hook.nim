@@ -17,15 +17,23 @@ type
     hookType*: HookType
     tagFilter*: TagFilter
     defn*: HookFct
-  HookDefinitions* = array[HookType, seq[HookDefinition]]
+  HookDefinitionsObj* = object
+    items: array[HookType, seq[HookDefinition]]
+
+  HookDefinitions* = ref HookDefinitionsObj
 
   ArgumentsNodes = tuple[getters: NimNode, setters: NimNode]
 
-var hookDefinitions*: HookDefinitions = [
-  newSeq[HookDefinition](), newSeq[HookDefinition](),
-  newSeq[HookDefinition](), newSeq[HookDefinition](),
-  newSeq[HookDefinition](), newSeq[HookDefinition](),
-  newSeq[HookDefinition](), newSeq[HookDefinition]()]
+var hookDefinitions*: HookDefinitions = HookDefinitions(
+  items: [
+    newSeq[HookDefinition](), newSeq[HookDefinition](),
+    newSeq[HookDefinition](), newSeq[HookDefinition](),
+    newSeq[HookDefinition](), newSeq[HookDefinition](),
+    newSeq[HookDefinition](), newSeq[HookDefinition]()])
+
+proc `[]`*(
+    defs: HookDefinitions, hookType: HookType) : var seq[HookDefinition] = 
+  defs.items[hookType]
 
 proc hookTypeFor*(hookTypeName: string) : HookType {.procvar.} =
   case hookTypeName.toLower

@@ -28,7 +28,7 @@ let resultChar : Table[StepResultValue, string] = [
   (srFail, "✗"),
   (srSkip, "✻"),
   (srNoDefinition, "✤")].toTable
-let resultDesc : Table[StepResultValue, string] = [
+let resultDesc* : Table[StepResultValue, string] = [
   (srSuccess, "success"),
   (srFail, "fail"),
   (srSkip, "skip"),

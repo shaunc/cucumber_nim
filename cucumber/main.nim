@@ -5,6 +5,7 @@
 import future
 import os
 import strutils
+import sequtils
 import commandeer 
 import sets
 import tables
@@ -26,11 +27,13 @@ template withDir*(newDir: string, body: typed) : typed =
   finally:
     os.setCurrentDir(currentDir)
 
+#[
 proc `$$`[T](s : T) : string =
   if s == nil: 
     return "(nil)"
   else:
     return $s
+]#
 
 let tagRE = re"(?:\s*(~)?(?:(@[\w_]+)|([~*+])\[(.*)\]))"
 proc buildTagFilter(tagStr: string, op: string = "+"): TagFilter =
@@ -39,7 +42,7 @@ proc buildTagFilter(tagStr: string, op: string = "+"): TagFilter =
 
   let tagStr = tagStr.strip
   let match = (tagStr.match tagRE).get
-  let c = match.captures.toSeq
+  let c = toSeq(match.captures.items)
   let (neg, tag, nextOp, inner) = (c[0], c[1], c[2], c[3])
   result = proc (tags: StringSet): bool =
     if tag != nil:
@@ -67,6 +70,7 @@ proc main*(options: varargs[string]): int =
     option verbosity, int, "verbosity", "v", 0
     option bail, bool, "bail", "b", false
     option tags, string, "tags", "t", nil
+    option defineTags, string, "define", "d", nil
 
     exitoption "help", "h", 
       "\n" & """Usage: $1 [path [path ...] ]
@@ -92,8 +96,13 @@ proc main*(options: varargs[string]): int =
     echo exc.getStackTrace()
     echo "\n"
 
+  var defineTagsSet = initSet[string]()
+  if defineTags != nil:
+    for s in defineTags.split(","):
+      defineTagsSet.incl(s)
   let options = CucumberOptions(
-    verbosity: verbosity, bail: bail, tagFilter: buildTagFilter(tags) )
+    verbosity: verbosity, bail: bail, tagFilter: buildTagFilter(tags),
+    defineTags: defineTagsSet )
 
   var results = runner(features, options)
   result = basicReporter(results, stdout, options)

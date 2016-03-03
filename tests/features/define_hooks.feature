@@ -1,6 +1,6 @@
 # define_hooks.feature
 
-@hookMod
+@defMod
 Feature: Define hook implementations
   As a nim developer
   In order to test that my code meets my specifications
@@ -49,7 +49,7 @@ Scenario: reads argument <value> from <context> context.
   | 0     | succeeds        |
   | 1     | succeeds        |
 
-Scenario: writes argument <value> from <context> context.
+Scenario: writes argument <value> to <context> context.
   Given a hook definition:
   """
   BeforeAll @any, (<context>.a: var int):

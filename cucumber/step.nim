@@ -37,7 +37,8 @@ var stThen0 : seq[StepDefinition] = @[]
 var stepDefinitions* : StepDefinitions = StepDefinitions(
   items: [stGiven0, stWhen0, stThen0])
 
-proc `[]`*(defs: StepDefinitions, stepType: StepType) : var seq[StepDefinition] = 
+proc `[]`*(
+    defs: StepDefinitions, stepType: StepType) : var seq[StepDefinition] = 
   defs.items[stepType]
 
 proc stepTypeFor*(stName: string) : StepType {.procvar.} =

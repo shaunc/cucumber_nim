@@ -1,22 +1,12 @@
 # runner checks features
 
-@featureHookMod
-@featureStepMod
+@defMod
+@runnerMod
 Feature: discover whether code tested implements features
   As a nim developer
   In order to insure my code implements the features I want it to
   I want to run the steps in each scenario, and check whether
   they can be successfully completed.
-
-Background:
-  Given a step definition:
-  """
-  Given "I did something", ():
-    discard
-
-  Given "I screwed up", ():
-    assert false
-  """
 
 Scenario: run trivial feature
   When I run the feature:
@@ -26,6 +16,11 @@ Scenario: run trivial feature
   Then there are 0 scenario results
 
 Scenario: run scenario with single step
+  Given step definitions:
+  """
+  Given "I did something", ():
+    discard
+  """
   When I run the feature:
   """
   Feature: parse gherkin
@@ -36,6 +31,11 @@ Scenario: run scenario with single step
   Then scenario results are distributed: [1, 0, 0, 0].
 
 Scenario: run two scenarios
+  Given step definitions:
+  """
+  Given "I did something", ():
+    discard
+  """
   When I run the feature:
   """
   Feature: parse gherkin
@@ -49,6 +49,11 @@ Scenario: run two scenarios
   Then scenario results are distributed: [2, 0, 0, 0].
 
 Scenario: run failing step
+  Given step definitions:
+  """
+  Given "I screwed up", ():
+    assert false
+  """
   When I run the feature:
   """
   Feature: parse gherkin
@@ -59,6 +64,11 @@ Scenario: run failing step
   Then scenario results are distributed: [0, 1, 0, 0].
 
 Scenario: run skipped scenario
+  Given step definitions:
+  """
+  Given "I did something", ():
+    discard
+  """
   When I run the feature:
   """
   Feature: parse gherkin
@@ -79,13 +89,239 @@ Scenario: run step without definition
   """
   Then scenario results are distributed: [0, 0, 0, 1].
 
-# Scenario: run all examples in scenario outline
+Scenario: run all examples in scenario outline
+  Given step definitions:
+  """
+  Given "I did something", ():
+    discard
+  """
+  When I run the feature:
+  """
+  Feature: parse gherkin
 
-# Scenario: run all examples in join of scenario outline example tables
+  Scenario Outline: simple <trial>
+    Given I did something
 
-# Scenario: run <hookType> hook
+    Examples:
+    | trial |
+    | 1     |
+    | 2     |
+  """
+  Then scenario results are distributed: [2, 0, 0, 0].
 
-# Scenario: run feature background
+Scenario: run all examples in scenario outline with join
+  Given step definitions:
+  """
+  Given "I did something", ():
+    discard
+  """
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  Scenario Outline: simple <trial> <cross>
+    Given I did something
+
+    Examples:
+    | trial |
+    | 1     |
+    | 2     |
+
+    Examples:
+    | cross |
+    | 1     |
+    | 2     |
+  """
+  Then scenario results are distributed: [4, 0, 0, 0].
+
+
+Scenario: run <hookType> hooks
+  Given a step definition:
+  """
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """  
+  Given hook definitions:
+  """
+  <hookBefore> @any, (scenario.i: var int):
+    i = 1
+  <hookAfter> @any, (scenario.i: var int):
+    assert i == 2
+  """
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  Scenario: assume i is 1
+    Then scenario.i is 1
+  """
+  Examples:
+  | hookType | hookBefore     | hookAfter     |
+  | Global   | BeforeAll      | AfterAll      |
+  | Feature  | BeforeFeature  | AfterFeature  |
+  | Scenario | BeforeScenario | AfterScenario |
+  | Step     | BeforeStep     | AfterStep     |
+
+Scenario: run "<hookType>" hooks based on tag specified in options
+  Given a step definition:
+  """
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """  
+  Given hook definitions:
+  """
+  <hookBefore> @foo, (scenario.i: var int):
+    i = 2
+  <hookAfter> @foo, (scenario.i: var int):
+    assert i == 3
+
+  <hookBefore> @bar, (scenario.i: var int):
+    i = 1
+  <hookAfter> @bar, (scenario.i: var int):
+    assert i == 2
+  """
+  When I run the feature with "@bar" defined:
+  """
+  Feature: parse gherkin
+
+  Scenario: assume i is 1
+    Then scenario.i is 1
+  """
+  Examples:
+  | hookType | hookBefore     | hookAfter     |
+  | Global   | BeforeAll      | AfterAll      |
+  | Feature  | BeforeFeature  | AfterFeature  |
+  | Scenario | BeforeScenario | AfterScenario |
+  | Step     | BeforeStep     | AfterStep     |
+
+Scenario: run <hookType> hooks based on tag (specified for feature)
+  Given a step definition:
+  """
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """  
+  Given hook definitions:
+  """
+  <hookBefore> @foo, (scenario.i: var int):
+    i = 2
+  <hookAfter> @foo, (scenario.i: var int):
+    assert i == 3
+
+  <hookBefore> @bar, (scenario.i: var int):
+    i = 1
+  <hookAfter> @bar, (scenario.i: var int):
+    assert i == 2
+  """
+  When I run the feature:
+  """
+  @bar
+  Feature: parse gherkin
+
+  Scenario: assume i is 1
+    Then scenario.i is 1
+  """
+  Then scenario results are distributed: [1, 0, 0, 0].
+
+  Examples:
+  | hookType | hookBefore     | hookAfter     |
+  | Feature  | BeforeFeature  | AfterFeature  |
+  | Scenario | BeforeScenario | AfterScenario |
+  | Step     | BeforeStep     | AfterStep     |
+
+Scenario: run <hookType> hooks based on tag (specified for scenario)
+  Given a step definition:
+  """
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """  
+  Given hook definitions:
+  """
+  <hookBefore> @foo, (scenario.i: var int):
+    i = 2
+  <hookAfter> @foo, (scenario.i: var int):
+    assert i == 3
+
+  <hookBefore> @bar, (scenario.i: var int):
+    i = 1
+  <hookAfter> @bar, (scenario.i: var int):
+    assert i == 2
+  """
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  @bar
+  Scenario: assume i is 1
+    Then scenario.i is 1
+  """
+  Then scenario results are distributed: [1, 0, 0, 0].
+
+  Examples:
+  | hookType | hookBefore     | hookAfter     |
+  | Scenario | BeforeScenario | AfterScenario |
+  | Step     | BeforeStep     | AfterStep     |
+
+Scenario: run <hookType> hooks based on combined feature & scenario tags
+  Given a step definition:
+  """
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """  
+  Given hook definitions:
+  """
+  <hookBefore> *[@foo,~@bar], (scenario.i: var int):
+    i = 2
+  <hookAfter> *[~@foo,@bar], (scenario.i: var int):
+    assert i == 3
+
+  <hookBefore> *[@foo,@bar], (scenario.i: var int):
+    i = 1
+  <hookAfter> *[@foo,@bar], (scenario.i: var int):
+    assert i == 2
+  """
+  When I run the feature:
+  """
+  @foo
+  Feature: parse gherkin
+
+  @bar
+  Scenario: assume i is 1
+    Then scenario.i is 1
+  """
+  Then scenario results are distributed: [1, 0, 0, 0].
+
+  Examples:
+  | hookType | hookBefore     | hookAfter     |
+  | Scenario | BeforeScenario | AfterScenario |
+  | Step     | BeforeStep     | AfterStep     |
+
+
+Scenario: run feature background
+  Given step definitions:
+  """
+  Given "i set to 1", (scenario.i: var int):
+    i = 1
+
+  Then "scenario.i is 1", (scenario.i: var int):
+    assert i == 1
+    inc(i)
+  """
+  When I run the feature:
+  """
+  Feature: parse gherkin
+
+  Background:
+    Given i set to 1
+
+  Scenario: assume 1 is 1
+    Then scenario.i is 1
+  """  
+  Then scenario results are distributed: [1, 0, 0, 0].
 
 # Scenario: run feature background and scenarios for each background example
 
@@ -102,6 +338,13 @@ Scenario: run step without definition
 #   | scenario  | feature  | true  |
 #   | scenario  | scenario | true  |
 #   | scenario  | step     | false |
+
+  # Given step definitions:
+  # """
+  # Given "scenario.i set from feature context", (
+  #     feature.ifeat: int, scenario.i: var int):
+  #   i = ifeat
+  # """
 
 
 # match single step

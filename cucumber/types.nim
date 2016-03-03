@@ -71,3 +71,4 @@ type
     verbosity*: int
     bail*: bool
     tagFilter*: TagFilter
+    defineTags*: StringSet

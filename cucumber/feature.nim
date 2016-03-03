@@ -293,14 +293,15 @@ proc readBody(
 const stepTypes = ["And", "Given", "When", "Then"]
 let stepTypeRE = re("($1)" % (stepTypes.mapIt ("(?:^$1)" % it)).join("|"))
 
-proc addStep(steps: var seq[Step], line: Line) : void =
+proc addStep(parent: Scenario, steps: var seq[Step], line: Line) : void =
   var text = line.content.strip()
   var stepTypeM = text.match(stepTypeRE)
   if stepTypeM.isNone:
     raise newSyntaxError(line, 
       "Step must start with \"Given\", \"When\", \"Then\", \"And\".")
   var stepType = stepTypeM.get.captures[0]
-  var step = Step(description: text.substr, lineNumber: line.number)
+  var step = Step(
+    parent: parent, description: text.substr, lineNumber: line.number)
   if stepType == "And":
     if steps.len == 0:
       raise newSyntaxError(line, "First step cannot be \"And\"")
@@ -353,7 +354,7 @@ proc readScenario(
           raise newSyntaxError(line, "multiline block must follow step")
         result.steps[^1].readBlock(stream, line.indent)
       else:
-        addStep(result.steps, line)
+        addStep(result, result.steps, line)
     of ltComment:
       result.comments.add(line.content)
     else:

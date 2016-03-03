@@ -121,8 +121,16 @@ iterator exampleScenarios(
       )
 
 iterator iterScenario(
-    scenario: Scenario, options: CucumberOptions): ScenarioResult =
+    scenario: Scenario, options: CucumberOptions, resetBetween: bool
+    ): ScenarioResult =
+  ##[
+    Either iterate through singleton run of scenario
+    without examples, or mulitple runs if examples present.
 
+    If ``resetBetween`` is true, reset the scenario context
+    after subsequent scenarios.
+  ]##
+  var i = 0
   if scenario != nil:
     if scenario.examples.len == 0:
       let sresult = runScenario(scenario, options)
@@ -130,18 +138,32 @@ iterator iterScenario(
         yield sresult
     else:
       for escenario in exampleScenarios(scenario):
+        if i > 0 and resetBetween:
+          resetContext(ctScenario)
         let sresult = runScenario(escenario, options)
         if sresult != nil:
           yield sresult
+          i += 1
 
 iterator runFeature(
     feature: Feature, options: CucumberOptions): OrdResult =
 
+  ##[
+    Run the features background and scenarios.
+
+    The feature "before" hooks are checked, then feature background, then
+    feature "after" hooks.
+
+    TODO: if first k "before" hooks are checked before a failure, then
+    the first k "after" hooks should also be run in "finally" before
+    returning failure.
+  ]##
+
   if options.verbosity >= 1:
     echo "feature \"$1\" scenarios $2" % [
       feature.description, $feature.scenarios.len ]
-  resetContext(ctFeature)
-  let hookResult = runHooks(htBeforeFeature, feature.tags, feature, options)
+  let tags = feature.tags + options.defineTags
+  let hookResult = runHooks(htBeforeFeature, tags, feature, options)
   if hookResult.value != hrSuccess:
     let sresult = ScenarioResult(
       stepResult: StepResult(value: srFail, hookResult: hookResult))
@@ -149,22 +171,24 @@ iterator runFeature(
   else:
     var i = 0
     if feature.background != nil:
-      for bresult in iterScenario(feature.background, options):
+      for bresult in iterScenario(feature.background, options, false):
         if bresult.stepResult.value != srSuccess:
           yield (i, bresult)
           i += 1
         else:
-          for scenario in feature.scenarios:
-            for sresult in iterScenario(scenario, options):
+          for iscenario, scenario in feature.scenarios:
+            if iscenario > 0:
+              resetContext(ctScenario)
+            for sresult in iterScenario(scenario, options, true):
               yield (i, sresult)
               i += 1
     else:
       for scenario in feature.scenarios:
-        for sresult in iterScenario(scenario, options):
+        for sresult in iterScenario(scenario, options, true):
           yield (i, sresult)
           i += 1
     let afterHookResult = runHooks(
-      htAfterFeature, feature.tags, feature, options)
+      htAfterFeature, tags, feature, options)
     if afterHookResult.value != hrSuccess:
       let sresult = ScenarioResult(
         stepResult: StepResult(value: srFail, hookResult: afterHookResult))
@@ -182,7 +206,9 @@ proc runner*(features: Features, options: CucumberOptions) : ResultsIter =
         stepResult: StepResult(value: srFail, hookResult: hookResult))
       yield (0, sresult)
       return
-    for feature in features:
+    for ifeature, feature in features:
+      if ifeature > 0:
+        resetContext(ctFeature)
       for j, sresult in runFeature(feature, options):
         yield (i, sresult)
         i += 1
@@ -202,7 +228,7 @@ proc runScenario(
   var sresult = StepResult(value: srSuccess)
   result = ScenarioResult(
     stepResult: sresult, feature: feature, scenario: scenario)
-  let tags = scenario.tags + scenario.parent.tags
+  let tags = scenario.tags + scenario.parent.tags + options.defineTags
   if options.verbosity >= 2:
     echo "  scenario \"$1\": $2" % [scenario.description, $tags]
   if not options.tagFilter(tags):
@@ -211,7 +237,6 @@ proc runScenario(
       return nil
     sresult.value = srSkip
     return
-  resetContext(ctScenario)
   var badstep : Step
   let hookResult = runHooks(
     htBeforeScenario, tags, scenario, options)
@@ -286,8 +311,14 @@ proc runHooks(
     (dfrom, dto) = (definitions.high, definitions.low)
   else:
     (dfrom, dto) = (definitions.low, definitions.high)
+  if options.verbosity >= 5:
+    echo "Checking Hooks: $1: $2 defined" % [$hookType, $definitions.high]
   for ihookDef in count(dfrom, dto):
+
     let hookDef = definitions[ihookDef]
+    if options.verbosity >= 5:
+      echo "Check hook $1($2): {$3}?: $4" % [
+        $hookType, $ihookDef, toSeq(tags.items).join(","), $hookDef.tagFilter(tags)]
     if not hookDef.tagFilter(tags):
       continue
     try:
