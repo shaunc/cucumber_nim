@@ -85,8 +85,9 @@ Step Definitions
 
 Define steps using the ``Given``, ``When`` and ``Then`` macros, which are
 defined in "cucumber/step". They all take three arguments: a 
-`pattern <#sd-patterns>`_,  `arguments <#sd-arguments>`_, and a 
-`body <#sd-body>`_.
+`pattern <#step-definition-patterns>`_,  
+`arguments <#step-definition-arguments>`_, and a 
+`body <#step-definition-body>`_.
 
 For example::
 
@@ -97,7 +98,6 @@ For example::
     assert e == 23
     b = a
 
-.. _sd patterns:
 
 Step Definition Patterns
 ........................
@@ -113,8 +113,6 @@ include named arguments, surrounded by angle brackets (``<`` and  ``>``). If
 there is an argument by this name in the argument list, then before the regex
 is compiled, the default capture group for the 
 `parameter type <#parameter-types>`_ is substituted into the pattern.
-
-.. _sd arguments:
 
 Step Definition Arguments
 .........................
@@ -171,8 +169,6 @@ integers (which is `r"(-?\d+)"`).
 
 See the steps in package tests/steps for further examples.
 
-.. _sd body:
-
 Step Definition Body
 ....................
 
@@ -199,8 +195,6 @@ of steps in features. The example code above will be compiled by the
           result.value = srFail
           result.exception = exc
 
-
-.. _parameter types:
 
 Parameter Types
 ~~~~~~~~~~~~~~~
@@ -272,10 +266,8 @@ Hook implementations looks like::
     AfterScenario *[@foo, +[@bar, ~baz]], (scenario.a: int):
       assert a == 0
 
-Hook macros take a `tag filter <#hd-tag-filter>`_, an 
-`argument list <#hd-argument-list>`_, and a `hook body <#hd-hook-body>`_.
-
-.. _hd tag filter:
+Hook macros take a `tag filter`_, an 
+`argument list`_, and a `hook body`_.
 
 Tag Filter
 ..........
@@ -294,8 +286,6 @@ the operators are:
 ``+`` or
 ===== ========
 
-.. _hd argument list:
-
 Argument List
 .............
 
@@ -303,15 +293,11 @@ The argument list is similar to
 `the step definition argument list <#sd-arguments>`_. However, it can
 only specify qualifiers ``global``, ``feature`` or ``scenario``.
 
-.. _hd hook body:
-
 Hook Body
 .........
 
 The hook body is nim code that can use the arguments, similarly to
-`step definition bodies <#sd-body>`_.
-
-.. _main file:
+a `step definition body`_.
 
 Main File
 ~~~~~~~~~
@@ -334,8 +320,6 @@ cucumber_nim itself looks like::
       quit(nfail)
 
 
-.. _command line:
-
 Command Line
 ~~~~~~~~~~~~
 
@@ -349,23 +333,32 @@ are used instead of the default.
 
 Options include:
 
-* -v --verbosity: Verbosity of runner and reporter. Currently:
+* `-v` `--verbosity`: Verbosity of runner and reporter. Currently:
 
-  ** -2: very quiet: return code is # of errors
-  ** -1: quiet: lists features run and failing scenarios
-  ** 0 (default): lists features and scenarios; writes exception info for
+  * `-2`: very quiet: return code is \# of errors
+
+  * `-1`: quiet: lists features run and failing scenarios
+
+  * `0` (default): lists features and scenarios; writes exception info for
   caught exceptions.
-  ** 1: logs when features are executing
-  ** 2: logs when features and scenarios are executing
-  ** 3: logs when features, scenarios and steps are executing
-  ** 4: logs when features, scenarios, steps and hooks are executing
-  ** 5: logs all of the above, and also lists attempted regex matches
+
+  * `1`: logs when features are executing
+
+  * `2`: logs when features and scenarios are executing
+
+  * `3`: logs when features, scenarios and steps are executing
+
+  * `4`: logs when features, scenarios, steps and hooks are executing
+
+  * `5`: logs all of the above, and also lists attempted regex matches
   for steps and tag matches for hooks.
 
-* -b --bail: stop on first failure or undefined step
-* -t --tags: only run tags matching spec (in format of
-  `hook tag filter <#hd-tag-filter>`_). The default is ``~@skip``.
-* -d --define: define a comma-separated list of tags globally.
+* `-b` `--bail`: stop on first failure or undefined step
+
+* `-t` `--tags`: only run tags matching spec (in format of
+  `hook tag filter <#tag-filter>`_). The default is ``~@skip``.
+
+* `-d` `--define`: define a comma-separated list of tags globally.
 
 Testing -- SECURITY WARNING
 ---------------------------
