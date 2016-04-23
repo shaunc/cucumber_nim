@@ -1,6 +1,7 @@
 # define_steps.feature
 
 @defMod
+@check
 Feature: Define steps implementations
   As a nim developer
   In order to test that my code meets my specifications
@@ -56,6 +57,27 @@ Scenario: reads argument from step text.
   Then step Given 0 takes 1 arguments from step text.
   Then running step Given 0 succeeds with text "a 1"
   Then running step Given 0 fails with text "a 0"
+
+@check
+Scenario: parses arguments with implicit pattern for <type>.
+  Given a step definition:
+  """
+  Given r"a <param>", (param: <type>):
+    assert $(param) == "<value>"
+  """
+  Then running step Given 0 succeeds with text "a <svalue>"
+  Examples:
+    | type  | svalue | value |
+    | int   | 1      | 1     |
+    | bool  | true   | true  |
+    | bool  | t      | true  |
+    | bool  | a      | true  |
+    | bool  | no     | false |
+    | float | 2.4    | 2.4   |
+    | float | 0.24e1 | 2.4   |
+    | float | NaN    | nan   |
+    | float | INF    | inf   |
+    | float | -inf   | -inf  |
 
 Scenario: reads argument <value> from <context> context.
   Given a step definition:

@@ -235,19 +235,23 @@ DeclareParamType("int", int, strutils.parseInt, newInt, r"(-?\d+)")
 
 proc parseBool*(s: string) : bool = 
   case s
-    of "a", "an": true
+    of "a", "an", "t": true
+    of "f": false
     else: strutils.parseBool(s)
 
 proc newBool() : bool = false
-const boolPattern = r"((?:true)|(?:false)|(?:yes)|(?:no)|(?:a)|(?:an))";
+const boolPattern = r"((?:t(?:rue)?)|(?:f(?:alse)?)|(?:y(?:es)?)|(?:no?)|(?:an?))";
 DeclareParamType("bool", bool, parseBool, newBool, boolPattern)
 
 proc newStringA(): string = ""
 proc parseString*(s: string) : string = s
 DeclareParamType("string", string, parseString, newStringA, r"(.*)")
 
-## `blockParam` type is special: string filled from step block parameter
-## DeclareParamType("blockParam", string, parseString, newStringA, nil)
+proc newFloat(): float = 0
+const floatPattern = r"((?:[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)|(?:[Nn][Aa][Nn])|(?:[Ii][Nn][Ff])|(?:-[Ii][Nn][Ff]))"
+proc parseFloat*(s: string) : float =
+  strutils.parseFloat(strutils.toUpper s)
+DeclareParamType("float", float, parseFloat, newFloat, floatPattern)
 
 proc newSeqB[T]() : seq[T] = newSeq[T]()
 

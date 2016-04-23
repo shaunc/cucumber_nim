@@ -23,7 +23,7 @@ proc loader*(
     Load features found in `toSearch into `features`.
    
    `toSearch`: array of file or directory names in which
-     to search for features. If a directory ends in "/**", it
+     to search for features. If a directory ends in `"/**"`, it
      will be searched recursively.
    
    `recFilter` controls treatment symlinks during recursive walk.

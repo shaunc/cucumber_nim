@@ -2,9 +2,9 @@
 
 @defMod
 @runnerMod
-Feature: discover whether code tested implements features
+Feature: Test whether code tested implements features
   As a nim developer
-  In order to insure my code implements the features I want it to
+  In order to insure my code implements the features I have specified
   I want to run the steps in each scenario, and check whether
   they can be successfully completed.
 
