@@ -382,6 +382,10 @@ Run:
 
     nim c -r --verbosity:0 ./tests/run
 
+or:
+
+    nimble tests
+
 To run tests.
 
 
