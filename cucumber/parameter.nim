@@ -258,5 +258,6 @@ proc newSeqB[T]() : seq[T] = newSeq[T]()
 DeclareParamType("seq[int]", seq[int], nil, newSeqB[int], nil)
 DeclareParamType("seq[string]", seq[string], nil, newSeqB[string], nil)
 DeclareParamType("seq[bool]", seq[bool], nil, newSeqB[bool], nil)
+DeclareParamType("seq[float]", seq[float], nil, newSeqB[float], nil)
 
 
