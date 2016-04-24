@@ -9,7 +9,7 @@ license       = "MIT"
 
 requires "nim >= 0.13.0"
 requires "nre >= 1.0.0"
-requires "comandeer >= 0.9.1"
+requires "commandeer >= 0.9.1 & < 0.10.2"
 
 task tests, "test cucumber_nim features":
   exec "nim c -r --verbosity:0 ./tests/run"
