@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.0.5"
+version       = "0.0.6"
 author        = "Shaun Cutts"
 description   = "Implements Cucumber BDD system in nim."
 license       = "MIT"
