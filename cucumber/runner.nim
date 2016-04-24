@@ -6,6 +6,7 @@ import strutils
 import options
 import nre
 import sequtils
+import tables
 import "./types"
 import "./feature"
 import "./parameter"
@@ -344,9 +345,13 @@ proc runHooks(
       result.exception = exc
       break
 
-#TODO
 proc fillTable(sd: StepDefinition, stepTable: Examples): void =
-  discard
+  if stepTable == nil:
+    return
+  for icol, colName in stepTable.columns:
+    let setter = sd.columns[colName]
+    for row in stepTable.values:
+      setter(row[icol])
 
 when isMainModule:
 

@@ -28,3 +28,4 @@ export typeinfo.Any, toAny
 export tables.`[]`, tables.`[]=`
 #export parameter.DeclareRefParamType, parameter.DeclareParamType
 #export parameter.parseInt, parameter.parseBool, parameter.parseString
+export parameter

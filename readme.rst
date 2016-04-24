@@ -72,10 +72,7 @@ set of rows used.
 4. Background sections may have examples. If they do, all the scenarios
 of the feature are run for each example row.
 
-5. Tables may be specified for steps, but step definitions currently can not
-access them. (TODO!)
-
-6. The special tag "@skip" can be used to specify features and/or scenarios
+5. The special tag "@skip" can be used to specify features and/or scenarios
 which are skipped by default.
 
 .. _step definitions:
@@ -147,7 +144,7 @@ step text. Allowed values are:
   Such arguments must currently have type string.
 
 * ``column``: The argument is a sequence of values taken from a column
-  of a table specified by the step. Currently this is unsupported.
+  of a table specified by the step.
 
 Context arguments (``global``, ``feature`` or ``scenario``- qualified) may
 optionally include the ``var`` keyword. If they do, the variable is

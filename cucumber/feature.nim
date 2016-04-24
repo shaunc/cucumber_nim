@@ -154,7 +154,7 @@ proc readScenario(
     feature: Feature, stream: var LineStream, head: Line
     ) : Scenario
 proc readExamples(
-    scenario: Scenario, stream: var LineStream, indent: int
+    scenario: Scenario, stream: var LineStream, indent: int, step: Step = nil
     ) : void
 proc readBlock(step: Step, stream: var LineStream, indent: int): void
 
@@ -351,8 +351,14 @@ proc readScenario(
     of ltBody:
       if line.content == "\"\"\"":
         if result.steps.len == 0:
-          raise newSyntaxError(line, "multiline block must follow step")
+          raise newSyntaxError(line, "Multiline block must follow step.")
         result.steps[^1].readBlock(stream, line.indent)
+      elif line.content[0] == '|':
+        stream.pushback line
+        if result.steps.len == 0:
+          raise newSyntaxError(line, "Step table must follow step.")
+        let lastStep = result.steps[^1]
+        result.readExamples(stream, line.indent, lastStep)
       else:
         addStep(result, result.steps, line)
     of ltComment:
@@ -372,13 +378,16 @@ proc readBlock(step: Step, stream: var LineStream, indent: int) : void =
     content.add(repeat(" ", max(0, line.indent - indent)) & line.content & "\n")
 
 proc readExamples(
-    scenario: Scenario, stream: var LineStream, indent: int
+    scenario: Scenario, stream: var LineStream, indent: int, step: Step = nil
     ) : void = 
   let result = Examples(
     parent: scenario,
     columns : @[],
     values: @[])
-  scenario.examples.add result
+  if step == nil:
+    scenario.examples.add result
+  else:
+    step.table = result
   while true:
     let line = stream.nextLine
     if line.ltype != ltBody:

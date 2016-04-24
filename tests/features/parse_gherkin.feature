@@ -307,7 +307,7 @@ Scenario: A feature may have a tag.
   """
   Then the feature has tag "@tag1"
 
-Scenario: A feature may have multiple tag.
+Scenario: A feature may have multiple tags.
   When I read the feature file:
   """
   @tag1 @tag2 @tag3
@@ -334,7 +334,7 @@ Scenario: A scenario may have a tag.
   """
   Then scenario 0 has tag "@tag1"
 
-Scenario: A scenario may have multiple tag.
+Scenario: A scenario may have multiple tags.
   When I read the feature file:
   """
   Feature: parse gherkin
@@ -373,11 +373,6 @@ Scenario: Feature and scenarios may all have multiple tags
   Then scenario 0 has tags "@tag1 @tag2 @tag3"
   Then scenario 1 has tags "@tag4 @tag5"
 
-# A feature may have a tag
-# A feature may have multple tags
-# A feature may have tags specified on multiple lines
-# A scenario may have a tag
-# A scenario may have multiple tags
 # A feature file may contain comments
 # Comments before feature are associated with the feature
 # comments before scenario are associated with the scenario
@@ -388,3 +383,19 @@ Scenario: Feature and scenarios may all have multiple tags
 
 # tables in steps
 
+@check
+Scenario: A step may define a table
+  When I read the feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: somesuch
+    Given a table:
+      | a | b |
+      | 1 | 2 |
+      | 3 | 3 |
+  """
+  Then step 0 of scenario 0 has table with 2 rows and columns:
+    | name |
+    | a    |
+    | b    |

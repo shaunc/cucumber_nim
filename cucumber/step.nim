@@ -24,7 +24,7 @@ type
     stepRE*: Regex
     defn*: proc(stepArgs: StepArgs) : StepResult
     blockParamName*: string
-    columns: TableRef[string, ColumnSetter]
+    columns*: TableRef[string, ColumnSetter]
   StepDefinition* = ref StepDefinitionObj
 
   StepDefinitionsObj* = object
