@@ -315,15 +315,34 @@ macro Given*(
     ) : typed =
   result = step(stGiven, pattern, arglist, body)
 
+macro ShowGiven*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : typed =
+  result = step(stGiven, pattern, arglist, body)
+  echo "Given --------------"
+  echo result.toStrLit.strVal
+
 macro When*(
     pattern: static[string], arglist: untyped, body: untyped
     ) : typed =
   result = step(stWhen, pattern, arglist, body)
 
+macro ShowWhen*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : typed =
+  result = step(stWhen, pattern, arglist, body)
+  echo result.toStrLit.strVal
+
 macro Then*(
     pattern: static[string], arglist: untyped, body: untyped
     ) : typed  =
   result = step(stThen, pattern, arglist, body)
+
+macro ShowThen*(
+    pattern: static[string], arglist: untyped, body: untyped
+    ) : typed  =
+  result = step(stThen, pattern, arglist, body)
+  echo result.toStrLit.strVal
 
 when isMainModule:
   import typeinfo

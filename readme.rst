@@ -357,6 +357,13 @@ Options include:
 
 * `-d` `--define`: define a comma-separated list of tags globally.
 
+Debugging Aids
+~~~~~~~~~~~~~~
+
+The `steps` module contains `ShowGiven`, `ShowWhen` and `ShowThen`, which
+dump the resulting nim code to the console as well as generating 
+the step definitions.
+
 Testing -- SECURITY WARNING
 ---------------------------
 

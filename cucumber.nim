@@ -16,6 +16,7 @@ export types.HookType
 export types.ContextType
 export types.StringSet, types.TagFilter, types.CucumberOptions
 export step.Given, step.When, step.Then
+export step.ShowGiven, step.ShowWhen, step.ShowThen
 export step.StepDefinition, step.StepArgs, step.stepDefinitions
 export step.resetContext
 export step.re, step.Regex, step.RegexMatch, step.match
