@@ -199,8 +199,9 @@ Parameter Types
 The type of a formal parameter is a "parameter type" -- which doesn't
 (necessarily) correspond to a nim type. The "cucumber/parameters" defines
 some common types (currently: int, string, bool. TODO: add float at least).
-It also defines the ``DeclareParamType`` and ``DeclareRefParamType`` macros,
-which can be used to define other parameter types.
+It also defines the ``DeclareParamType`` and ``DeclareRefParamType``
+macros, which can be used to define other parameter types.
+
 
 DeclareParamType
 ................
@@ -234,6 +235,43 @@ is short for::
   DeclareParamType("<ptype>", ptype, nil, nil, nil)
 
 This is useful for declaring reference parameter types stored in context.
+
+Note when declaring parameter types, that the name in quotes needn't
+correspond to the nim type name. This means for a given nim type you
+can declare different parameter types, perhaps in order to use different
+parsing functions, etc. Keep in mind that, in a step or hook definition,
+parameters should be declared using the cucumber name (without quotes).
+
+For example::
+
+  DeclareParamType("IntA", int, parseIntA, newIntA, r"(\d+)")
+  DeclareParamType("IntB", int, parseIntB, newIntB, r"(-?\d+)")
+
+would be used like this in a step definition::
+
+  Then "<a> is less than <b>", (a: IntA, b: IntB):
+    assert a < b
+
+When matching a step, `a` would accept strings using regex `r"(\d+)"`; 
+`b` would match using `r"(-?\d+)"`, (and their respective parsers
+would be used as well as their respective initialization functions
+for default vaules).
+
+Sequences as parameter types
+............................
+
+The columns of a step table are loaded into a sequence. Currently to
+support this, when a parameter with a name like `seq[Foo]` is created,
+cucumber will create a procedure to parse strings representing sequence
+elements and add them to the sequence. This assumes the existence
+of a function `parseFoo(string): Foo`, to parse the individual elements.
+
+This is a temporary feature; in the future, either there will be a
+special form of a parameter type declaration for parsing elements,
+or cucumber will detect the presence of the function. In the meantime,
+you can either declare a element parser, or you can use a name
+that does not have the form `seq[...]` for the name of the parameter
+type corresponding to a nim `seq`.
 
 
 .. _hook definitions:
