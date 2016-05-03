@@ -26,9 +26,7 @@ it is running its own features!
 Installation
 ------------
 
-(Pending inclusion in nimble index!)::
-
-  nimble install cucumber
+``nimble install cucumber``
 
 Usage
 -----
@@ -226,7 +224,7 @@ Where:
 
   If ``nil`` then ``nil`` will be used as initial value.
   (This is only legal if it is legal for ``ptype``).
-  
+
 * ``pattern``: string pattern which can be used as default capture in 
   regex. Can be nil; if defined must define exactly one capture group.
 
