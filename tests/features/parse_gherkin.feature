@@ -383,7 +383,6 @@ Scenario: Feature and scenarios may all have multiple tags
 
 # tables in steps
 
-@check
 Scenario: A step may define a table
   When I read the feature file:
   """
@@ -399,3 +398,23 @@ Scenario: A step may define a table
     | name |
     | a    |
     | b    |
+
+Scenario: A scenario may have both step table and examples.
+  When I read the feature file:
+  """
+  Feature: parse gherkin
+
+  Scenario: step table and examples
+    Given table:
+      | bar |
+      | baz |
+    Given "<foo1>"
+
+    Examples:
+    | foo1 |
+    | 1    |
+  """
+  Then step 0 of scenario 0 has table with 1 row and columns:
+    | name |
+    | bar  |
+

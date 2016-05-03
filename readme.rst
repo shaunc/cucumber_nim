@@ -197,9 +197,9 @@ Parameter Types
 ~~~~~~~~~~~~~~~
 
 The type of a formal parameter is a "parameter type" -- which doesn't
-(necessarily) correspond to a nim type. The "cucumber/parameters" defines
-some common types (currently: int, string, bool. TODO: add float at least).
-It also defines the ``DeclareParamType`` and ``DeclareRefParamType``
+(necessarily) correspond to a nim type. The "cucumber/parameters" defines some
+common types (currently: int, string, bool and float, as well as sequences of
+these). It also defines the ``DeclareParamType`` and ``DeclareRefParamType``
 macros, which can be used to define other parameter types.
 
 
@@ -214,14 +214,19 @@ Where:
 
 * ``name``: Name of the parameter type (to be used in argument list
   specification).
-* ``ptype``: actual nim type (not quoted). Is used to declare variables
+* ``ptype``: Actual nim type (not quoted). Is used to declare variables
   in step definitions.
-* ``parseFct``: fuction which takes a string and returns parsed value
-  of type ``ptype``. Can be ``nil`` for arguments not from step text (e.g.
+* ``parseFct``: Function which takes a string and returns parsed value
+  of type ``ptype``. 
+
+  Can be ``nil`` for arguments not from step text (e.g.
   which are just stored in context).
-* ``newFct``: function which can be used to initialize or create a value 
-  of type ``ptype``. If ``nil`` then ``nil`` will be used as initial value.
+* ``newFct``: Function which can be used to initialize or create a value 
+  of type ``ptype``. 
+
+  If ``nil`` then ``nil`` will be used as initial value.
   (This is only legal if it is legal for ``ptype``).
+  
 * ``pattern``: string pattern which can be used as default capture in 
   regex. Can be nil; if defined must define exactly one capture group.
 

@@ -390,11 +390,9 @@ proc readExamples(
     step.table = result
   while true:
     let line = stream.nextLine
-    if line.ltype != ltBody:
+    if line.ltype != ltBody or line.content.match(re"\|.*\|$").isNone:
       stream.pushback line
       break
-    if line.content.match(re("|.*|$")).isNone:
-      raise newSyntaxError(line, "Malformed examples table.")
     let row = line.content.split('|')[1..^2].mapIt it.strip()
     if result.columns.len == 0:
       result.columns.add row

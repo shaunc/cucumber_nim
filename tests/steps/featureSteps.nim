@@ -137,7 +137,7 @@ Then r"""column (\d+) of example (\d+), scenario (\d+) is named \"([^\"]*)\"""",
   let column = example.columns[icolumn]
   assert column == columnName
 
-Then r"step <istep> of scenario <iscenario> has table with <irows> rows and columns:", (
+Then r"step <istep> of scenario <iscenario> has table with <irows> rows? and columns:", (
     scenario.feature: Feature, 
     istep: int, iscenario: int, irows: int, column.name: seq[string]):
   let step = feature.scenarios[iscenario].steps[istep]

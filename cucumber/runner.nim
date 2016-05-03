@@ -350,8 +350,12 @@ proc fillTable(sd: StepDefinition, stepTable: Examples): void =
     return
   for icol, colName in stepTable.columns:
     let setter = sd.columns[colName]
+    var col = newSeq[string]()
     for row in stepTable.values:
-      setter(row[icol])
+      col.add(row[icol])
+    setter(col)
+    # for row in stepTable.values:
+    #   setter(row[icol])
 
 when isMainModule:
 

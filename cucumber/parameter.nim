@@ -148,16 +148,19 @@ macro declareContextColumnSetter(
   let subt = name[4..^2]
   let setterName = pubName(nil, ptName(name, "ColumnSetter"))
   let varName = newIdentNode("varName")
-  let strVal = newIdentNode("strVal")
+  let strValues = newIdentNode("strValues")
   let contextExpr = newCall(
     ptName(name, "Getter"), newIdentNode("ctTable"), varName)
   let parseFctName = ptName(subt, "parseFct")
-  let callParse = newCall(parseFctName, strVal)
-  let addStmt = newCall(newDot(contextExpr, "add"), callParse)
+  let idx = newIdentNode("idx")
+  let val = newIdentNode("val")
+  let callParse = newCall(parseFctName, val)
   result = quote do:
     proc `setterName`(
-        `varName`: string, `strVal`: string): void =
-      `addStmt`
+        `varName`: string, `strValues`: seq[string]): void =
+      setLen(`contextExpr`, `strValues`.len)
+      for `idx`, `val` in `strValues`:
+        `contextExpr`[`idx`] = `callParse`
   #echo result.toStrLit.strVal
 
 template DeclareParamType*(
@@ -201,7 +204,8 @@ template DeclareParamType*(
     defined as above (mutatis mutandis), but with the addition of:
 
     ```nim
-    proc paramTypeSeqIntColumnSetter(varName: string, strVal: string): void = 
+    proc paramTypeSeqIntColumnSetter(varName: string, strValues: seq[string]): void = 
+
       paramTypeSeqIntContext(ctTable, varName).add(parseInt(strVal))
     ```
   ]##

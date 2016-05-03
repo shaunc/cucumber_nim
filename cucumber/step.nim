@@ -17,7 +17,7 @@ export types.StepArgs
 export parameter.resetContext
 
 type
-  ColumnSetter* = proc(sval: string): void
+  ColumnSetter* = proc(svalues: seq[string]): void
 
   StepDefinitionObj* = object
     stepType*: StepType
@@ -105,8 +105,8 @@ proc step(
       let stepDef = StepDefinition(
         stepRE: stepRE, defn: stepDefinition, blockParamName: "c"
         columns: newTable[string, ColumnSetter]())
-      stepDef.columns["d"] = proc(strVal: string): void = 
-        paramTypeSeqIntColumnSetter("d", strVal)
+      stepDef.columns["d"] = proc(strValues: seq[string]): void = 
+        paramTypeSeqIntColumnSetter("d", strValues)
       stepDefinitions[stGiven].add(stepDef)
     
     Argument list syntax:
@@ -218,7 +218,7 @@ proc unpackArg*(argdef: NimNode) : ArgSpec =
     aname = $anameN
   if atypeN.kind == nnkVarTy:
     avar = true
-    atype = $atypeN[0]
+    atype = $(atypeN[0])
   else:
     atype = atypeN.toStrLit.strVal
   return (aname, atype, aloc, avar)
@@ -261,10 +261,10 @@ proc subsPattern(
 proc newColumnInit(aname: string, atype: string, stepDef: NimNode): NimNode =
   let csetter = ptName(atype, "columnSetter")
   let colTarget = newBrkt(newDot(stepDef, "columns"), aname.newLit)
-  let strVal = newIdentNode("strVal")
-  let csetStmt = newCall(csetter, aname.newLit, strVal)
+  let strValues = newIdentNode("strValues")
+  let csetStmt = newCall(csetter, aname.newLit, strValues)
   let slist = quote do:
-    `colTarget` = proc(`strVal`: string): void =
+    `colTarget` = proc(`strValues`: seq[string]): void =
       `csetStmt`
   result = slist[0]
 
