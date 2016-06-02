@@ -22,7 +22,7 @@ export step.StepDefinition, step.StepArgs, step.stepDefinitions
 export step.resetContext
 export step.re, step.Regex, step.RegexMatch, step.match
 export step.Option, step.get, step.captures, step.Captures, step.`[]`
-export hook.hookDefinitions
+export hook.hookDefinitions, hook.`[]`, hook.hookTypeFor
 export hook.BeforeAll, hook.AfterAll
 export hook.BeforeFeature, hook.AfterFeature
 export hook.BeforeScenario, hook.AfterScenario
