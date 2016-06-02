@@ -73,10 +73,19 @@ proc main*(options: varargs[string]): int =
     option defineTags, string, "define", "d", nil
 
     exitoption "help", "h", 
-      "\n" & """Usage: $1 [path [path ...] ]
-    where paths may denote ".feature" files or directories. Paths ending in 
-    "/**" will be searched recursively for features. By default, "./features"
+      "\n" & """Usage: $1 [options] [path [path ...] ]
+    where paths may denote ".feature" files or directories. Paths ending in "/**"
+    will be searched recursively for features. By default, "./tests/features"
     directory is searched.
+
+    A feature file path ending in ":<list>" will restrict execution to the
+    enumerated scenarios, where list is comma separated list of scenario numbers. 
+
+    Options:
+      -v --verbosity <int>   range from -2 to 5 with 0 default
+      -b --bail              stop on first failure
+      -t --tags <expr>       filter for these tags (default "~@skip")
+      -d --defineTags <expr> define these tags globally
       """ % appName
   {.pop.}
 
