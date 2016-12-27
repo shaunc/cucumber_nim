@@ -5,6 +5,8 @@ author        = "Shaun Cutts"
 description   = "Implements Cucumber BDD system in nim."
 license       = "MIT"
 
+skipDirs = @["tests"]
+
 # Dependencies
 
 requires "nim >= 0.13.0"
