@@ -42,7 +42,7 @@ proc `[]`*(
   defs.items[stepType]
 
 proc stepTypeFor*(stName: string) : StepType {.procvar.} =
-  case stName.substr().toLower
+  case stName.substr().toLowerAscii
   of "given": return stGiven
   of "when": return stWhen
   of "then": return stThen

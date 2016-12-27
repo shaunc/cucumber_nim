@@ -5,7 +5,7 @@ import strutils
 import sequtils
 
 proc pubName*(prefix: string, aname: string) : NimNode {.compiletime.} =
-  let name : string = if prefix == nil: aname else: prefix & capitalize(aname)
+  let name : string = if prefix == nil: aname else: prefix & capitalizeAscii(aname)
   result = postfix(newIdentNode(name), "*")
 proc toTypeNode(atype: NimNode, isVar: bool = false): NimNode {.compiletime.} =
   result = atype

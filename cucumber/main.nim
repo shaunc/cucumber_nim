@@ -42,7 +42,7 @@ proc buildTagFilter(tagStr: string, op: string = "+"): TagFilter =
 
   let tagStr = tagStr.strip
   let match = (tagStr.match tagRE).get
-  let c = toSeq(match.captures.items)
+  let c = toSeq(match.captures)
   let (neg, tag, nextOp, inner) = (c[0], c[1], c[2], c[3])
   result = proc (tags: StringSet): bool =
     if tag != nil:

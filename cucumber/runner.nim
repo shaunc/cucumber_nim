@@ -303,7 +303,7 @@ iterator count(a, b: int) : int =
         yield i
 
 proc runHooks(
-    hookType: HookType, tags: StringSet, testNode: TestNode,
+    hookType: HookType, tags: HashSet[string], testNode: TestNode,
     options: CucumberOptions): HookResult =
   result = HookResult(value: hrSuccess)
   let definitions = hookDefinitions[hookType]
@@ -318,8 +318,13 @@ proc runHooks(
 
     let hookDef = definitions[ihookDef]
     if options.verbosity >= 5:
+      # ???? sets.items missing/broken ... nim 0.15.2?
+      #let tagiter = sets.items[string](tags)
+      var tagseq = newSeq[string]()
+      for t in tags:
+        tagseq.add t
       echo "Check hook $1($2): {$3}?: $4" % [
-        $hookType, $ihookDef, toSeq(tags.items).join(","), $hookDef.tagFilter(tags)]
+        $hookType, $ihookDef, tagseq.join(","), $hookDef.tagFilter(tags)]
     if not hookDef.tagFilter(tags):
       continue
     try:

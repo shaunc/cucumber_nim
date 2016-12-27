@@ -29,7 +29,7 @@
 
 import tables
 import macros
-from strutils import capitalize, parseInt, toLower
+from strutils import capitalizeAscii, parseInt, toLowerAscii
 import macroutil
 import "./types"
 
@@ -39,7 +39,7 @@ type
   ResetContext* = proc(ctype: ContextType) : void
 
 proc contextTypeFor*(cname: string) : ContextType =
-  case cname.substr().toLower
+  case cname.substr().toLowerAscii
   of "global": result = ctGlobal
   of "feature": result = ctFeature
   of "scenario": result = ctScenario
@@ -66,10 +66,10 @@ proc resetList*[T](contextList: var ContextList[T], clear: ContextType) :void =
 proc ptName*(name: string, suffix: string) : string {.compiletime.} = 
   var name = name
   if name[0..3] == "seq[" and name[^1] == ']':
-    name = name[0..2] & capitalize(name[4..^2])
-  ptPrefix & capitalize(name) & capitalize(suffix)
+    name = name[0..2] & capitalizeAscii(name[4..^2])
+  ptPrefix & capitalizeAscii(name) & capitalizeAscii(suffix)
 proc cttName(name: string) : string {.compiletime.} =
-  capitalize(name) & "Context"
+  capitalizeAscii(name) & "Context"
 
 macro declareTypeName(name: static[string], ptype: untyped) : untyped =
   result = newVar(
@@ -254,7 +254,7 @@ DeclareParamType("string", string, parseString, newStringA, r"(.*)")
 proc newFloat(): float = 0
 const floatPattern = r"((?:[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)|(?:[Nn][Aa][Nn])|(?:[Ii][Nn][Ff])|(?:-[Ii][Nn][Ff]))"
 proc parseFloat*(s: string) : float =
-  strutils.parseFloat(strutils.toUpper s)
+  strutils.parseFloat(strutils.toUpperAscii s)
 DeclareParamType("float", float, parseFloat, newFloat, floatPattern)
 
 proc newSeqPT*[T]() : seq[T] = newSeq[T]()

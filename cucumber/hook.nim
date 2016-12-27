@@ -36,7 +36,7 @@ proc `[]`*(
   defs.items[hookType]
 
 proc hookTypeFor*(hookTypeName: string) : HookType {.procvar.} =
-  case hookTypeName.toLower
+  case hookTypeName.toLowerAscii
     of "beforeall": result = htBeforeAll
     of "afterall": result = htAfterAll
     of "beforefeature": result = htBeforeFeature

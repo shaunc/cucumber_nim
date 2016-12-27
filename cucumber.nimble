@@ -9,10 +9,10 @@ skipDirs = @["tests"]
 
 # Dependencies
 
-requires "nim >= 0.13.0"
+requires "nim >= 0.15.0"
 requires "nre >= 1.0.0"
-requires "commandeer >= 0.9.1 & < 0.10.2"
+requires "commandeer >= 0.10.5"
+requires "tempfile >= 0.1.4"
 
-task tests, "test cucumber_nim features":
+task test, "test cucumber_nim features":
   exec "nim c -r --verbosity:0 ./tests/run"
-  setCommand "nop"

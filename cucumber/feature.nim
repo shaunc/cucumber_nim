@@ -9,7 +9,7 @@ import sets
 from streams import newFileStream, Stream, readLine
 from sequtils import mapIt, apply
 from sets import toSet, contains
-from strutils import split, strip, repeat, `%`, join, capitalize
+from strutils import split, strip, repeat, `%`, join, capitalizeAscii
 from nre import re, match, captures, `[]`, replace
 import options
 import "./types"
@@ -115,7 +115,7 @@ proc newFeature(name: string): Feature =
     scenarios: @[]
   )
 proc newScenario(feature: Feature, text: string) : Scenario =
-  let description = text.replace(headRE, "").capitalize
+  let description = text.replace(headRE, "").capitalizeAscii
   result = Scenario(
     description: description,
     parent: feature,
@@ -174,7 +174,7 @@ proc newLine(line: string, ltype: LineType, number: int): Line =
       content: sline.strip)
 
 proc headKey(line: Line) : string =
-  return capitalize((line.content.match headRE).get.captures[0])
+  return capitalizeAscii((line.content.match headRE).get.captures[0])
 
 proc nextLine(stream: var LineStream, skipBlankLines : bool = true) : Line = 
   var text = ""
@@ -291,7 +291,7 @@ proc readBody(
   feature.comments.add comments
 
 const stepTypes = ["And", "Given", "When", "Then"]
-let stepTypeRE = re("($1)" % (stepTypes.mapIt ("(?:^$1)" % it)).join("|"))
+let stepTypeRE = re("($1)" % mapIt(stepTypes, ("(?:^$1)" % it)).join("|"))
 
 proc addStep(parent: Scenario, steps: var seq[Step], line: Line) : void =
   var text = line.content.strip()
